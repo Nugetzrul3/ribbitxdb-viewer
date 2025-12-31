@@ -1,0 +1,161 @@
+from typing import List, Dict, Any, Optional
+from ribbitxdb.connection import Connection
+from pathlib import Path
+import ribbitxdb
+
+
+class DatabaseManager:
+    """Handles DB interactions"""
+
+    def __init__(self):
+        self.connection: Optional[Connection] = None
+        self.db_path: Optional[str] = None
+
+    def open(self, db_path: str):
+        if self.connection:
+            self.close()
+
+        self.connection = ribbitxdb.connect(db_path)
+        self.db_path = Path(db_path).as_posix()
+
+    def get_tables(self) -> List[str]:
+        """Returns a list of table names"""
+
+        if not self.connection:
+            raise RuntimeError("No database connection")
+        cursor = self.connection.cursor()
+        query = cursor.execute("SELECT name FROM __ribbit_tables WHERE type='table'")
+        res = query.fetchall()
+        tables = []
+
+        for row in res:
+            tables.append(row[0])
+
+        return tables
+
+    def get_views(self) -> List[str]:
+        """Get list of all views in database"""
+
+        if not self.connection:
+            raise RuntimeError("No database connection")
+        cursor = self.connection.cursor()
+        query = cursor.execute("SELECT name FROM sqlite_master WHERE type='view' ORDER BY name")
+        res = query.fetchall()
+        views = []
+
+        for row in res:
+            views.append(row[0])
+
+        return views
+
+    def get_table_schema(self, table_name: str) -> Dict[str, Any]:
+        """
+        Returns schema from table name
+        :param table_name: Table name
+        :return: Dict[str, Any]
+        """
+
+        if not self.connection:
+            raise RuntimeError("No database connection")
+        cursor = self.connection.cursor()
+        query = cursor.execute("PRAGMA table_info(?)", (table_name,))
+        res = query.fetchone()
+
+        schema: Dict[str, Any] = {
+            'column_name': res[1],
+            'column_type': res[2],
+            'not_null': bool(res[3]),
+            'default_value': res[4],
+            'primary_key': bool(res[5]),
+            'auto_increment': bool(res[6]),
+            'unique_constraint': bool(res[7]),
+            'column_position': res[8],
+            'check_expression': res[9],
+            'foreign_key': res[10],
+        }
+
+        return schema
+
+    def get_view_schema(self, view_name: str) -> Dict[str, Any]:
+        """
+        Returns schema from view name
+        :param view_name:
+        :return: Dict[str, Any]
+        """
+
+        if not self.connection:
+            raise RuntimeError("No database connection")
+        cursor = self.connection.cursor()
+        query = cursor.execute("SELECT sql, created_at FROM __ribbit_views WHERE name = ?", (view_name,))
+        res = query.fetchone()
+
+        schema: Dict[str, Any] = {
+            'sql': res[0],
+            'created_at': res[1],
+        }
+
+        return schema
+
+    def get_table_data(self, table_name: str, limit: int = 500) -> Dict[str, Any]:
+        """
+        Returns data from the selected table
+        :param table_name: Table name
+        :param limit: Number of rows to return (default 500)
+        :return: Dict[str, Any]
+        """
+
+        if not self.connection:
+            raise RuntimeError("No database connection")
+        cursor = self.connection.cursor()
+        query = cursor.execute(f"SELECT * FROM ? LIMIT ?", (table_name, limit))
+
+        columns = [desc[0] for desc in cursor.description]
+        rows = query.fetchall()
+
+        return {
+            'columns': columns,
+            'rows': rows,
+            'total_rows': len(rows),
+        }
+
+    def execute_query(self, sql: str) -> Dict[str, Any]:
+        """
+        Executes arbitrary query
+        :param sql: SQL query
+        :return: Dict[str, Any]
+        """
+
+        if not self.connection:
+            raise RuntimeError("No database connection")
+        cursor = self.connection.cursor()
+        query = cursor.execute(sql)
+
+        if query.description:
+            # This is a SELECT query
+            columns = [desc[0] for desc in query.description]
+            rows = query.fetchall()
+            return {
+                'columns': columns,
+                'rows': rows,
+                'total_rows': len(rows)
+            }
+        else:
+            # INSERT/UPDATE/DELETE query
+            self.connection.commit()
+            return {
+                'columns': [],
+                'rows': [],
+                'total_rows': query.rowcount
+            }
+
+
+    def close(self):
+        """Closes the current connection"""
+
+        if self.connection:
+            self.connection.close()
+        self.connection = None
+        self.db_path = None
+
+    def __del__(self):
+        self.close()
