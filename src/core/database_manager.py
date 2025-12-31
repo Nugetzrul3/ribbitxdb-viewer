@@ -39,7 +39,7 @@ class DatabaseManager:
         if not self.connection:
             raise RuntimeError("No database connection")
         cursor = self.connection.cursor()
-        query = cursor.execute("SELECT name FROM sqlite_master WHERE type='view' ORDER BY name")
+        query = cursor.execute("SELECT name FROM __ribbit_views ORDER BY name")
         res = query.fetchall()
         views = []
 

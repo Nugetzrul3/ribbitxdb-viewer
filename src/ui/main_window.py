@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
         v_splitter.setStretchFactor(0, 2)
         v_splitter.setStretchFactor(1, 1)
 
-        # h_splitter.addWidget(self.db_tree)
+        h_splitter.addWidget(self.db_tree)
         h_splitter.addWidget(v_splitter)
         h_splitter.setStretchFactor(0, 1)
         h_splitter.setStretchFactor(1, 4)
@@ -120,6 +120,7 @@ class MainWindow(QMainWindow):
             filepath = dialog.get_filepath()
             try:
                 self.db_manager.open(filepath)
+                self.db_tree.load_database(self.db_manager)
                 self.statusBar().showMessage(f"Opened: {filepath}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to open database: {str(e)}")

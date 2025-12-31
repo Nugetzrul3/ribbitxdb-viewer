@@ -16,6 +16,8 @@ class DatabaseTree(QTreeWidget):
     def __init__(self):
         super().__init__()
         self.db_manager: Optional[DatabaseManager] = None
+        self.setup_ui()
+        self.setup_connections()
 
     def setup_ui(self):
         """Initialise widget settings"""
