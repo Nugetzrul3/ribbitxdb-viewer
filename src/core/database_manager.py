@@ -48,7 +48,7 @@ class DatabaseManager:
 
         return views
 
-    def get_table_schema(self, table_name: str) -> Dict[str, Any]:
+    def get_table_schema(self, table_name: str) -> List[Dict[str, Any]]:
         """
         Returns schema from table name
         :param table_name: Table name
@@ -59,22 +59,26 @@ class DatabaseManager:
             raise RuntimeError("No database connection")
         cursor = self.connection.cursor()
         query = cursor.execute("PRAGMA table_info(?)", (table_name,))
-        res = query.fetchone()
+        res = query.fetchall()
+        schemas: List[Dict[str, Any]] = []
 
-        schema: Dict[str, Any] = {
-            'column_name': res[1],
-            'column_type': res[2],
-            'not_null': bool(res[3]),
-            'default_value': res[4],
-            'primary_key': bool(res[5]),
-            'auto_increment': bool(res[6]),
-            'unique_constraint': bool(res[7]),
-            'column_position': res[8],
-            'check_expression': res[9],
-            'foreign_key': res[10],
-        }
+        for row in res:
+            schema: Dict[str, Any] = {
+                'column_name': row[1],
+                'column_type': row[2],
+                'not_null': bool(row[3]),
+                'default_value': row[4],
+                'primary_key': bool(row[5]),
+                'auto_increment': bool(row[6]),
+                'unique_constraint': bool(row[7]),
+                'column_position': row[8],
+                'check_expression': row[9],
+                'foreign_key': row[10],
+            }
 
-        return schema
+            schemas.append(schema)
+
+        return schemas
 
     def get_view_schema(self, view_name: str) -> Dict[str, Any]:
         """

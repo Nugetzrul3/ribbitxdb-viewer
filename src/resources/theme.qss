@@ -178,14 +178,6 @@ QTreeWidget::item:selected, QTreeView::item:selected {
     border-left: 3px solid #00FF94;
 }
 
-QTreeWidget::branch {
-    background-color: #0F0F10;
-}
-
-QTreeWidget::branch:hover {
-    background-color: #1A1A1C;
-}
-
 /* Table Widget (Table Viewer) */
 QTableWidget, QTableView {
     background-color: #0F0F10;
@@ -221,15 +213,6 @@ QHeaderView::section {
 
 QHeaderView::section:hover {
     background-color: #2A2A2C;
-}
-
-QHeaderView::section:first {
-    border-top-left-radius: 6px;
-}
-
-QHeaderView::section:last {
-    border-top-right-radius: 6px;
-    border-right: none;
 }
 
 /* Text Edit & Plain Text Edit (Query Editor) */

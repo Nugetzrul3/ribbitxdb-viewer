@@ -1,9 +1,7 @@
+from src.ui.main_window import MainWindow
 from PyQt6.QtWidgets import QApplication
-from src.core import DatabaseManager
 from PyQt6.QtCore import Qt
 import sys
-
-from src.ui.main_window import MainWindow
 
 
 def main():
@@ -16,7 +14,7 @@ def main():
     app.setOrganizationName('Nugetzrul3')
 
     try:
-        with open('src/resources/theme.qss', 'r') as f:
+        with open('resources/theme.qss', 'r') as f:
             app.setStyleSheet(f.read())
     except FileNotFoundError:
         pass

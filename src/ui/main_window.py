@@ -2,12 +2,13 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
     QSplitter, QToolBar, QMessageBox
 )
-from PyQt6.QtGui import QAction, QKeySequence
+from PyQt6.QtGui import QAction, QKeySequence, QIcon
 from .database_tree import DatabaseTree
 from PyQt6.QtCore import Qt, QSettings
 from .table_viewer import TableViewer
 from ..core import DatabaseManager
 from .dialogs import OpenDatabaseDialog
+from pathlib import Path
 
 
 class MainWindow(QMainWindow):
@@ -17,6 +18,12 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("RibbitXDB Viewer")
         self.setGeometry(100, 100, 1400, 900)
+
+        icon_path = Path(__file__).parent.parent / 'resources' / 'logo.png'
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
+
+        self.setWindowIcon(QIcon(icon_path.as_posix()))
 
         self._init_ui()
         self._create_menus()
@@ -120,8 +127,8 @@ class MainWindow(QMainWindow):
             filepath = dialog.get_filepath()
             try:
                 self.db_manager.open(filepath)
-                self.db_tree.load_database(self.db_manager)
-                self.statusBar().showMessage(f"Opened: {filepath}")
+                if self.db_tree.load_database(self.db_manager):
+                    self.statusBar().showMessage(f"Opened: {filepath}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to open database: {str(e)}")
 
