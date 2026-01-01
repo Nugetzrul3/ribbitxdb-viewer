@@ -48,6 +48,7 @@ class MainWindow(QMainWindow):
         # Since views are tables, we can call same function
         self.db_tree.view_selected.connect(self.on_table_selected)
         self.db_tree.database_disconnected.connect(self.on_database_disconnected)
+        self.db_tree.database_refreshed.connect(self.on_database_refreshed)
 
         # Right: Vertical splitter for table view and query editor
         v_splitter = QSplitter(Qt.Orientation.Vertical)
@@ -170,14 +171,23 @@ class MainWindow(QMainWindow):
                 db_manager.close()
                 del self.db_managers[db_path]
 
-            db_name = db_path.split('/')[-1]
             self.table_viewer.clearContents()
             self.table_viewer.setRowCount(0)
             self.table_viewer.setColumnCount(0)
-            self.statusBar().showMessage(f"{db_name} disconnected")
+            self.statusBar().showMessage(f"{db_path} disconnected")
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to disconnect database: {str(e)}")
+
+    def on_database_refreshed(self, db_path: str):
+        """Handle database refreshed"""
+        try:
+            self.table_viewer.clearContents()
+            self.table_viewer.setRowCount(0)
+            self.table_viewer.setColumnCount(0)
+            self.statusBar().showMessage(f"{db_path} refreshed")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to refresh database: {str(e)}")
 
     def _restore_settings(self):
         """Restore window settings"""

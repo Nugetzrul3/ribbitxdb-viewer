@@ -1,14 +1,13 @@
 from PyQt6.QtWidgets import (
-    QTreeWidget, QTreeWidgetItem, QMenu, QMessageBox,
-    QTreeWidgetItemIterator
+    QTreeWidget, QTreeWidgetItem, QMenu, QMessageBox
 )
-from PyQt6.QtGui import QAction, QCursor, QActionGroup
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
+from PyQt6.QtGui import QAction, QCursor
 from .dialogs import SchemaViewerDialog
 from .. import APP_NAME, APP_AUTHOR
 from platformdirs import user_data_dir
 from ..core import DatabaseManager
-from typing import Optional, List
+from typing import Optional
 from pathlib import Path
 
 
@@ -19,6 +18,7 @@ class DatabaseTree(QTreeWidget):
     table_selected = pyqtSignal(str, str)
     view_selected = pyqtSignal(str, str)
     database_disconnected = pyqtSignal(str)
+    database_refreshed = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -86,6 +86,27 @@ class DatabaseTree(QTreeWidget):
 
         # Emit signal with database path so main_window can close the connection
         self.database_disconnected.emit(db_path)
+
+    def refresh_database(self):
+        """Refresh database tables and views"""
+        item = self.currentItem()
+        item.setExpanded(False)
+
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        db_path = data.get('path', '')
+
+        # check if db still exists
+        if not Path(db_path).exists():
+            self.disconnect_database()
+            return
+
+        db_manager: DatabaseManager = data.get('db_manager')
+        # load tables and views again
+        item.takeChildren()
+        self._load_tables(item, db_manager)
+        self._load_views(item, db_manager)
+        item.setExpanded(True)
+        self.database_refreshed.emit(db_path)
 
     def on_item_clicked(self, item: QTreeWidgetItem, column: int):
         """Handle item click"""
@@ -199,9 +220,16 @@ class DatabaseTree(QTreeWidget):
             menu.addAction(copy_action)
 
         elif item_type == 'database':
+            actions = []
             disconnect_action = QAction("Disconnect Database", self)
             disconnect_action.triggered.connect(self.disconnect_database)
-            menu.addAction(disconnect_action)
+            actions.append(disconnect_action)
+
+            refresh_action = QAction("Refresh Database", self)
+            refresh_action.triggered.connect(self.refresh_database)
+            actions.append(refresh_action)
+
+            menu.addActions(actions)
 
         menu.exec(QCursor.pos())
 
