@@ -2,8 +2,11 @@ from PyQt6.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QMenu, QMessageBox,
     QTreeWidgetItemIterator
 )
+from PyQt6.QtGui import QAction, QCursor, QActionGroup
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
-from PyQt6.QtGui import QAction, QCursor
+from .dialogs import SchemaViewerDialog
+from .. import APP_NAME, APP_AUTHOR
+from platformdirs import user_data_dir
 from ..core import DatabaseManager
 from typing import Optional, List
 from pathlib import Path
@@ -13,14 +16,16 @@ class DatabaseTree(QTreeWidget):
     """Widget to display database structure"""
 
     # Signals
-    table_selected = pyqtSignal(str)
-    view_selected = pyqtSignal(str)
+    table_selected = pyqtSignal(str, str)
+    view_selected = pyqtSignal(str, str)
+    database_disconnected = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
         self.db_manager: Optional[DatabaseManager] = None
         self.setup_ui()
         self.setup_connections()
+        self.data_dir = user_data_dir(APP_NAME, APP_AUTHOR)
 
     def setup_ui(self):
         """Initialise widget settings"""
@@ -36,34 +41,53 @@ class DatabaseTree(QTreeWidget):
         self.itemDoubleClicked.connect(self.on_item_double_clicked)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
-    def load_database(self, db_manager: DatabaseManager) -> bool:
-        self.db_manager = db_manager
-
+    def load_database(self, db_manager: DatabaseManager) -> Optional[bool]:
         try:
-            db_name = self.db_manager.db_path
+            db_name = db_manager.db_path
+            db_path = db_manager.db_path
             if db_name:
                 db_name = db_name.split("/")[-1]
 
-            if self._check_duplicate_items(db_name):
-                QMessageBox.critical(self, "Error", "Database already exists")
-                return False
-
             root = QTreeWidgetItem(self, [db_name or "Database"])
             root.setData(0, Qt.ItemDataRole.UserRole, {
-                'name': db_name or "Database",
-                'type': 'DBName'
+                'type': 'database',
+                'name': db_name,
+                'path': db_path,
+                'db_manager': db_manager
             })
             root.setExpanded(True)
 
             # Load tables
-            self._load_tables(root)
+            self._load_tables(root, db_manager)
             # Load views
-            self._load_views(root)
+            self._load_views(root, db_manager)
 
             return True
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load database structure: {str(e)}")
+
+    def disconnect_database(self):
+        """Disconnect a specific database and remove from tree"""
+        item = self.currentItem()
+
+        if not item:
+            return
+
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+
+        if not data or data.get('type') != 'database':
+            return
+
+        db_path = data.get('path', '')
+
+        # Remove the item from the tree
+        index = self.indexOfTopLevelItem(item)
+        if index != -1:
+            self.takeTopLevelItem(index)
+
+        # Emit signal with database path so main_window can close the connection
+        self.database_disconnected.emit(db_path)
 
     def on_item_clicked(self, item: QTreeWidgetItem, column: int):
         """Handle item click"""
@@ -73,13 +97,16 @@ class DatabaseTree(QTreeWidget):
             return
 
         item_type = data.get("type", "")
+        db_manager: DatabaseManager = data.get('db_manager')
 
-        if item_type == "table":
-            table_name = data.get("name")
-            self.table_selected.emit(table_name)
-        elif item_type == "view":
-            view_name = data.get("name")
-            self.view_selected.emit(view_name)
+        if db_manager:
+            db_path = db_manager.db_path
+            if item_type == "table":
+                table_name = data.get("name")
+                self.table_selected.emit(db_path, table_name)
+            elif item_type == "view":
+                view_name = data.get("name")
+                self.view_selected.emit(db_path, view_name)
 
     def on_item_double_clicked(self, item: QTreeWidgetItem, column: int):
         """Handle double click. If item selected is table, the load columns"""
@@ -91,7 +118,8 @@ class DatabaseTree(QTreeWidget):
         item_type = data.get("type", "")
         if item_type == "table":
             table_name = data.get("name")
-            self._load_table_columns(item, table_name)
+            table_db_manager: DatabaseManager = data.get('db_manager')
+            self._load_table_columns(item, table_name, table_db_manager)
 
     def show_context_menu(self, position: QPoint):
         """Display context menu for different items"""
@@ -109,16 +137,17 @@ class DatabaseTree(QTreeWidget):
 
         if item_type == 'table':
             table_name = data.get('name')
+            table_db_manager: DatabaseManager = data.get('db_manager')
 
             view_action = QAction("View Data", self)
             view_action.triggered.connect(
-                lambda: self.table_selected.emit(table_name)
+                lambda: self.table_selected.emit(table_db_manager.db_path, table_name)
             )
             menu.addAction(view_action)
 
             schema_action = QAction("View Schema", self)
             schema_action.triggered.connect(
-                lambda: self.show_table_schema(table_name)
+                lambda: self.show_table_schema(table_name, table_db_manager)
             )
             menu.addAction(schema_action)
 
@@ -130,18 +159,34 @@ class DatabaseTree(QTreeWidget):
             )
             menu.addAction(copy_action)
 
+            query_menu = QMenu(self)
+            query_menu.setTitle("Generate query")
+            actions = []
+
             select_action = QAction("Generate SELECT Query", self)
             select_action.triggered.connect(
                 lambda: self.generate_select_query(table_name)
             )
-            menu.addAction(select_action)
+            actions.append(select_action)
+
+            insert_action = QAction("Generate INSERT Query", self)
+            insert_action.triggered.connect(
+                lambda: self.generate_insert_query(table_name, table_db_manager)
+            )
+            actions.append(insert_action)
+
+            # add update and delete queries
+
+            query_menu.addActions(actions)
+            menu.addMenu(query_menu)
 
         elif item_type == 'view':
             view_name = data.get('name')
+            view_db_manager: DatabaseManager = data.get('db_manager')
 
             view_action = QAction("View Data", self)
             view_action.triggered.connect(
-                lambda: self.view_selected.emit(view_name)
+                lambda: self.view_selected.emit(view_db_manager.db_path, view_name)
             )
             menu.addAction(view_action)
 
@@ -154,6 +199,11 @@ class DatabaseTree(QTreeWidget):
                 lambda: self.copy_to_clipboard(col_name)
             )
             menu.addAction(copy_action)
+
+        elif item_type == 'database':
+            disconnect_action = QAction("Disconnect Database", self)
+            disconnect_action.triggered.connect(self.disconnect_database)
+            menu.addAction(disconnect_action)
 
         menu.exec(QCursor.pos())
 
@@ -175,63 +225,30 @@ class DatabaseTree(QTreeWidget):
             f"SELECT query for '{table_name}' copied to clipboard!"
         )
 
-    def show_table_schema(self, table_name: str):
+    def generate_insert_query(self, table_name: str, db_manager: DatabaseManager):
+        """Generate and copy INSERT query to clipboard"""
+        schema = db_manager.get_table_schema(table_name)
+        columns = [x.get('column_name') for x in schema]
+        columns_seperated = ", ".join(columns)
+        columns_stringified = [f"'{x}'" for x in columns]
+        columns_stringified_seperated = ", ".join(columns_stringified)
+        query = (f"INSERT INTO {table_name} ({columns_seperated}) "
+                 f"VALUES ({columns_stringified_seperated});")
+        self.copy_to_clipboard(query)
+
+        QMessageBox.information(
+            self,
+            "Query Copied",
+            f"INSERT query for '{table_name}' copied to clipboard!"
+        )
+
+
+    def show_table_schema(self, table_name: str, db_manager: DatabaseManager):
         """Show detailed schema information for a table"""
-        if not self.db_manager:
-            return
-
         try:
-            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView
-            from PyQt6.QtCore import Qt
-
-            columns = self.db_manager.get_table_schema(table_name)
-
-            dialog = QDialog(self)
-            dialog.setWindowTitle(f"Schema: {table_name}")
-            dialog.setMinimumSize(700, 400)
-
-            layout = QVBoxLayout(dialog)
-
-            table = QTableWidget()
-            table.setColumnCount(7)
-            table.setRowCount(len(columns))
-            table.setHorizontalHeaderLabels([
-                "Column", "Type", "Nullable", "Default", "PK", "AI", "UQ"
-            ])
-
-            for row_idx, col in enumerate(columns):
-                table.setItem(row_idx, 0, QTableWidgetItem(col['column_name']))
-                table.setItem(row_idx, 1, QTableWidgetItem(col['column_type']))
-
-                nullable = "NULL" if not col['not_null'] else "NOT NULL"
-                table.setItem(row_idx, 2, QTableWidgetItem(nullable))
-
-                default = str(col['default_value']) if col['default_value'] else ""
-                table.setItem(row_idx, 3, QTableWidgetItem(default))
-
-                pk_item = QTableWidgetItem("✓" if col['primary_key'] else "")
-                pk_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                table.setItem(row_idx, 4, pk_item)
-
-                ai_item = QTableWidgetItem("✓" if col.get('auto_increment', False) else "")
-                ai_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                table.setItem(row_idx, 5, ai_item)
-
-                uq_item = QTableWidgetItem("✓" if col.get('unique_constraint', False) else "")
-                uq_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                table.setItem(row_idx, 6, uq_item)
-
-            table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked)
-            table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-            table.setAlternatingRowColors(True)
-
-            header = table.horizontalHeader()
-            header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-            header.setStretchLastSection(True)
-
-            layout.addWidget(table)
-            dialog.exec()
-
+            column_names = db_manager.get_table_schema(table_name)
+            schema_viewer = SchemaViewerDialog(self)
+            schema_viewer.display_schema_dialog(table_name, column_names)
         except Exception as e:
             QMessageBox.warning(
                 self,
@@ -239,13 +256,10 @@ class DatabaseTree(QTreeWidget):
                 f"Failed to retrieve schema: {str(e)}"
             )
 
-    def _load_tables(self, parent: QTreeWidgetItem):
+    def _load_tables(self, parent: QTreeWidgetItem, db_manager: DatabaseManager):
         """Load tables from database"""
-        if not self.db_manager:
-            return
-
         try:
-            tables = self.db_manager.get_tables()
+            tables = db_manager.get_tables()
 
             if not tables:
                 return
@@ -258,18 +272,16 @@ class DatabaseTree(QTreeWidget):
                 table_item.setData(0, Qt.ItemDataRole.UserRole, {
                     'type': 'table',
                     'name': table_name,
+                    'db_manager': db_manager
                 })
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load database tables: {str(e)}")
 
-    def _load_views(self, parent: QTreeWidgetItem):
+    def _load_views(self, parent: QTreeWidgetItem, db_manager: DatabaseManager):
         """Load views from database"""
-        if not self.db_manager:
-            return
-
         try:
-            views = self.db_manager.get_views()
+            views = db_manager.get_views()
 
             if not views:
                 return
@@ -281,22 +293,20 @@ class DatabaseTree(QTreeWidget):
                 view_item = QTreeWidgetItem(views_category, [view_name])
                 view_item.setData(0, Qt.ItemDataRole.UserRole, {
                     'type': 'view',
-                    'name': view_name
+                    'name': view_name,
+                    'db_manager': db_manager
                 })
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load database views: {str(e)}")
 
-    def _load_table_columns(self, table_item: QTreeWidgetItem, table_name: str):
+    def _load_table_columns(self, table_item: QTreeWidgetItem, table_name: str, db_manager: DatabaseManager):
         """Load columns from table"""
-        if not self.db_manager:
-            return
-
         try:
             table_item.takeChildren()
 
             # retrieve table columns
-            columns = self.db_manager.get_table_schema(table_name)
+            columns = db_manager.get_table_schema(table_name)
 
             columns_category = QTreeWidgetItem(table_item, ["Columns"])
             columns_category.setExpanded(True)
@@ -328,22 +338,8 @@ class DatabaseTree(QTreeWidget):
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load columns for {table_name}: {str(e)}")
 
-    def _check_duplicate_items(self, db_name: str) -> bool:
-        """Check if database name already exists"""
-        iterator = QTreeWidgetItemIterator(self)
-
-        while iterator.value():
-            item: QTreeWidgetItem = iterator.value()
-            data = item.data(0, Qt.ItemDataRole.UserRole)
-            name = data.get("name", None)
-
-            if not name:
-                return False
-
-            if name == db_name:
-                return True
-
-            iterator += 1
-
-        return False
+    # to be utilised
+    # @classmethod
+    # def _get_dummy_data_for_col_type(cls, col_type: str):
+    #     pass
 

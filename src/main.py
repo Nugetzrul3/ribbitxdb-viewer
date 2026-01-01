@@ -1,5 +1,6 @@
 from src.ui.main_window import MainWindow
 from PyQt6.QtWidgets import QApplication
+from src import APP_NAME, APP_AUTHOR
 from PyQt6.QtCore import Qt
 import sys
 
@@ -10,8 +11,8 @@ def main():
     )
 
     app = QApplication(sys.argv)
-    app.setApplicationName('RibbitXDB Viewer')
-    app.setOrganizationName('Nugetzrul3')
+    app.setApplicationName(APP_NAME)
+    app.setOrganizationName(APP_AUTHOR)
 
     try:
         with open('resources/theme.qss', 'r') as f:

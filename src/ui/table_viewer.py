@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView
+from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
 from typing import Dict, Any
 from PyQt6.QtCore import Qt
 
@@ -29,6 +29,10 @@ class TableViewer(QTableWidget):
         self.setRowCount(len(rows))
         self.setColumnCount(len(columns))
         self.setHorizontalHeaderLabels(columns)
+
+        if len(rows) == 0:
+            QMessageBox.information(self, "No data found", "No data found")
+            return
 
         for row_idx, row in enumerate(rows):
             for col_idx, col in enumerate(row):

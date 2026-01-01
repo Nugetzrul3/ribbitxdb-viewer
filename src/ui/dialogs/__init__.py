@@ -1,1 +1,2 @@
+from .schema_viewer_dialog import SchemaViewerDialog
 from .open_db_dialog import OpenDatabaseDialog

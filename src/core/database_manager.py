@@ -112,8 +112,7 @@ class DatabaseManager:
             raise RuntimeError("No database connection")
         cursor = self.connection.cursor()
         query = cursor.execute(f"SELECT * FROM ? LIMIT ?", (table_name, limit))
-
-        columns = [desc[0] for desc in cursor.description]
+        columns = [desc[0] for desc in cursor.description] if cursor.description else []
         rows = query.fetchall()
 
         return {

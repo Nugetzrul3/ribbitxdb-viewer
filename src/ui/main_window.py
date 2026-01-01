@@ -4,17 +4,18 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QAction, QKeySequence, QIcon
 from .database_tree import DatabaseTree
+from .dialogs import OpenDatabaseDialog
 from PyQt6.QtCore import Qt, QSettings
 from .table_viewer import TableViewer
 from ..core import DatabaseManager
-from .dialogs import OpenDatabaseDialog
 from pathlib import Path
+from typing import Dict
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.db_manager: DatabaseManager = DatabaseManager()
+        self.db_managers: Dict[str, DatabaseManager] = {}
 
         self.setWindowTitle("RibbitXDB Viewer")
         self.setGeometry(100, 100, 1400, 900)
@@ -36,7 +37,6 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # Main layout
         main_layout = QVBoxLayout(central_widget)
 
         # Horizontal splitter: sidebar | content
@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
         self.db_tree.table_selected.connect(self.on_table_selected)
         # Since views are tables, we can call same function
         self.db_tree.view_selected.connect(self.on_table_selected)
+        self.db_tree.database_disconnected.connect(self.on_database_disconnected)
 
         # Right: Vertical splitter for table view and query editor
         v_splitter = QSplitter(Qt.Orientation.Vertical)
@@ -125,21 +126,57 @@ class MainWindow(QMainWindow):
         dialog = OpenDatabaseDialog(self)
         if dialog.exec():
             filepath = dialog.get_filepath()
+
+            # Check if already open
+            if filepath in self.db_managers:
+                QMessageBox.information(
+                    self,
+                    "Already Open",
+                    f"Database '{filepath}' is already open."
+                )
+                return
+
             try:
-                self.db_manager.open(filepath)
-                if self.db_tree.load_database(self.db_manager):
-                    self.statusBar().showMessage(f"Opened: {filepath}")
+                # Create new database manager for this connection and store
+                db_manager = DatabaseManager()
+                db_manager.open(filepath)
+
+                self.db_managers[db_manager.db_path] = db_manager
+
+                # Load tree with this manager
+                self.db_tree.load_database(db_manager)
+
+                self.statusBar().showMessage(f"Opened: {filepath}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to open database: {str(e)}")
 
-    def on_table_selected(self, table_name: str):
+    def on_table_selected(self, db_path: str, table_name: str):
         """Handle table selection from tree"""
         try:
-            data = self.db_manager.get_table_data(table_name)
+            db_manager = self.db_managers[db_path]
+            data = db_manager.get_table_data(table_name)
             self.table_viewer.display_data(data)
             self.statusBar().showMessage(f"Viewing: {table_name}")
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to load table: {str(e)}")
+            QMessageBox.warning(self, "Error", f"Failed to open table: {str(e)}")
+
+    def on_database_disconnected(self, db_path: str):
+        """Handle database disconnection"""
+        try:
+            # Get and close the specific database manager
+            if db_path in self.db_managers:
+                db_manager = self.db_managers[db_path]
+                db_manager.close()
+                del self.db_managers[db_path]
+
+            db_name = db_path.split('/')[-1]
+            self.table_viewer.clearContents()
+            self.table_viewer.setRowCount(0)
+            self.table_viewer.setColumnCount(0)
+            self.statusBar().showMessage(f"{db_name} disconnected")
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to disconnect database: {str(e)}")
 
     def _restore_settings(self):
         """Restore window settings"""
