@@ -171,9 +171,7 @@ class MainWindow(QMainWindow):
                 db_manager.close()
                 del self.db_managers[db_path]
 
-            self.table_viewer.clearContents()
-            self.table_viewer.setRowCount(0)
-            self.table_viewer.setColumnCount(0)
+            self.table_viewer.clear_data()
             self.statusBar().showMessage(f"{db_path} disconnected")
 
         except Exception as e:
@@ -182,9 +180,7 @@ class MainWindow(QMainWindow):
     def on_database_refreshed(self, db_path: str):
         """Handle database refreshed"""
         try:
-            self.table_viewer.clearContents()
-            self.table_viewer.setRowCount(0)
-            self.table_viewer.setColumnCount(0)
+            self.table_viewer.clear_data()
             self.statusBar().showMessage(f"{db_path} refreshed")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to refresh database: {str(e)}")

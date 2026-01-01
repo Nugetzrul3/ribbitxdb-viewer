@@ -1,49 +1,46 @@
-from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
+from PyQt6.QtWidgets import QTableView, QHeaderView
+from PyQt6.QtCore import QSortFilterProxyModel
+from ..models import DatabaseTableModel
 from typing import Dict, Any
-from PyQt6.QtCore import Qt
 
-class TableViewer(QTableWidget):
+
+class TableViewer(QTableView):
     """Widget to display table data"""
 
     def __init__(self):
         super().__init__()
+        self.model = DatabaseTableModel()
+        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model.setSourceModel(self.model)
+        self.setModel(self.proxy_model)
         self.setup_ui()
 
     def setup_ui(self):
         """Initialise table settings"""
         self.setAlternatingRowColors(True)
-        self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        self.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
+        self.setSortingEnabled(True)
 
-        header = self.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        header.setStretchLastSection(True)
+        h_header = self.horizontalHeader()
+        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        h_header.setStretchLastSection(True)
+
+        v_header = self.verticalHeader()
+        v_header.setVisible(True)
 
     def display_data(self, data: Dict[str, Any]):
         """Display query results"""
-        columns = data.get("columns")
-        rows = data.get("rows", [])
-
-        # Reset
-        self.clear()
-        self.setRowCount(len(rows))
-        self.setColumnCount(len(columns))
-        self.setHorizontalHeaderLabels(columns)
-
-        if len(rows) == 0:
-            QMessageBox.information(self, "No data found", "No data found")
-            return
-
-        for row_idx, row in enumerate(rows):
-            for col_idx, col in enumerate(row):
-                item = QTableWidgetItem(str(col) if col is not None else "NULL")
-
-                if col is None:
-                    item.setForeground(Qt.GlobalColor.gray)
-
-                self.setItem(row_idx, col_idx, item)
-
+        self.model.set_data(data)
         self.resizeColumnsToContents()
+
+    def clear_data(self):
+        """Clear all data from the table"""
+        empty_data = {
+            'columns': [],
+            'rows': []
+        }
+        self.model.set_data(empty_data)
 
 
 
