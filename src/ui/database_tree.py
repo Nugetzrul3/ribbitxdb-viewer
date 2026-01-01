@@ -41,7 +41,7 @@ class DatabaseTree(QTreeWidget):
         self.itemDoubleClicked.connect(self.on_item_double_clicked)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
-    def load_database(self, db_manager: DatabaseManager) -> Optional[bool]:
+    def load_database(self, db_manager: DatabaseManager):
         try:
             db_name = db_manager.db_path
             db_path = db_manager.db_path
@@ -61,8 +61,6 @@ class DatabaseTree(QTreeWidget):
             self._load_tables(root, db_manager)
             # Load views
             self._load_views(root, db_manager)
-
-            return True
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load database structure: {str(e)}")

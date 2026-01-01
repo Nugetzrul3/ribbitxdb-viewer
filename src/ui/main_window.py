@@ -83,7 +83,7 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
 
         exit_action = QAction("E&xit", self)
-        exit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        exit_action.setShortcut(QKeySequence("Alt+F4"))
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
@@ -126,6 +126,7 @@ class MainWindow(QMainWindow):
         dialog = OpenDatabaseDialog(self)
         if dialog.exec():
             filepath = dialog.get_filepath()
+            filepath = Path(filepath).as_posix()
 
             # Check if already open
             if filepath in self.db_managers:
