@@ -6,10 +6,13 @@ from PyQt6.QtGui import QAction, QKeySequence, QIcon
 from .database_tree import DatabaseTree
 from .dialogs import OpenDatabaseDialog
 from PyQt6.QtCore import Qt, QSettings
+from platformdirs import user_data_dir
 from .table_viewer import TableViewer
+from .. import APP_NAME, APP_AUTHOR
 from ..core import DatabaseManager
 from pathlib import Path
 from typing import Dict
+import csv
 
 
 class MainWindow(QMainWindow):
@@ -30,6 +33,7 @@ class MainWindow(QMainWindow):
         self._create_menus()
         self._create_toolbar()
         self._create_statusbar()
+        self._load_dbs()
         self._restore_settings()
 
     def _init_ui(self):
@@ -184,6 +188,37 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"{db_path} refreshed")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to refresh database: {str(e)}")
+
+    def _load_dbs(self):
+        """Load databases saved in csv"""
+        data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
+        data_dir_path = Path(data_dir)
+        db_list = []
+
+        with open(data_dir_path / "databases.csv", 'r', newline="") as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                db_list.append(row[0])
+
+        # I have plans to make it so that we don't load all the dbs immediately, but for now
+        # I will keep it this way
+        for db_path in db_list:
+            db_manager = DatabaseManager()
+            db_manager.open(db_path)
+            self.db_tree.load_database(db_manager)
+            self.db_managers[db_path] = db_manager
+
+
+    def closeEvent(self, event):
+        """On window close, save open dbs to datadir file"""
+        data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
+        data_dir_path = Path(data_dir)
+        db_list = [x for x in self.db_managers.keys()]
+
+        with open(data_dir_path / 'databases.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows([path] for path in db_list)
+
 
     def _restore_settings(self):
         """Restore window settings"""
