@@ -121,6 +121,39 @@ class DatabaseManager:
             'total_rows': len(rows),
         }
 
+    def get_table_data_paginated(self, table_name: str, page: int = 1, page_size: int = 100) -> Dict[str, Any]:
+        """
+        Returns paginated data from the selected table
+        :param table_name: Table name
+        :param page: Page number (1-indexed)
+        :param page_size: Number of rows per page
+        :return: Dict[str, Any]
+        """
+        if not self.connection:
+            raise RuntimeError("No database connection")
+
+        offset = (page - 1) * page_size
+        cursor = self.connection.cursor()
+
+        count_query = cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+        total_rows = count_query.fetchone()[0]
+
+        query = cursor.execute(
+            f"SELECT * FROM {table_name} LIMIT ? OFFSET ?",
+            (page_size, offset)
+        )
+        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+        rows = query.fetchall()
+
+        return {
+            'columns': columns,
+            'rows': rows,
+            'total_rows': total_rows,
+            'page': page,
+            'page_size': page_size,
+            'displayed_rows': len(rows)
+        }
+
     def execute_query(self, sql: str) -> Dict[str, Any]:
         """
         Executes arbitrary query

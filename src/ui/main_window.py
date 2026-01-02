@@ -53,6 +53,7 @@ class MainWindow(QMainWindow):
         self.db_tree.view_selected.connect(self.on_table_selected)
         self.db_tree.database_disconnected.connect(self.on_database_disconnected)
         self.db_tree.database_refreshed.connect(self.on_database_refreshed)
+        self.db_tree.setMinimumWidth(200)
 
         # Right: Vertical splitter for table view and query editor
         v_splitter = QSplitter(Qt.Orientation.Vertical)
@@ -68,7 +69,7 @@ class MainWindow(QMainWindow):
 
         h_splitter.addWidget(self.db_tree)
         h_splitter.addWidget(v_splitter)
-        h_splitter.setStretchFactor(0, 1)
+        h_splitter.setStretchFactor(0, 2)
         h_splitter.setStretchFactor(1, 4)
 
         main_layout.addWidget(h_splitter)
@@ -158,13 +159,22 @@ class MainWindow(QMainWindow):
 
     def on_table_selected(self, db_path: str, table_name: str):
         """Handle table selection from tree"""
+        if db_path not in self.db_managers:
+            return
+
         try:
             db_manager = self.db_managers[db_path]
-            data = db_manager.get_table_data(table_name)
-            self.table_viewer.display_data(data)
-            self.statusBar().showMessage(f"Viewing: {table_name}")
+            page_size = self.table_viewer.pagination.page_size
+
+            data = db_manager.get_table_data_paginated(table_name, page=1, page_size=page_size)
+            self.table_viewer.display_data(data, db_manager, table_name)
+
+            total_pages = self.table_viewer.pagination.total_pages
+            self.statusBar().showMessage(
+                f"Viewing: {table_name} (Page 1 of {total_pages})"
+            )
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to open table: {str(e)}")
+            QMessageBox.warning(self, "Error", f"Failed to load table: {str(e)}")
 
     def on_database_disconnected(self, db_path: str):
         """Handle database disconnection"""
