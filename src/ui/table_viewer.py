@@ -55,6 +55,7 @@ class TableViewer(QWidget):
     def display_data(self, data: Dict[str, Any], db_manager: Optional[DatabaseManager] = None, table_name: Optional[str] = None):
         """Display query results"""
         if data.get('total_rows') == 0:
+            self.clear_data()
             QMessageBox.warning(self, 'No results', 'No results')
             return
         self.current_db_manager = db_manager

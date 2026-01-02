@@ -13,6 +13,7 @@ from ..core import DatabaseManager
 from pathlib import Path
 from typing import Dict
 import csv
+import sys
 
 
 class MainWindow(QMainWindow):
@@ -23,7 +24,12 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("RibbitXDB Viewer")
         self.setGeometry(100, 100, 1400, 900)
 
-        icon_path = Path(__file__).parent.parent / 'resources' / 'logo.png'
+        try:
+            base_path = Path(sys._MEIPASS)
+        except Exception:
+            base_path = Path(__file__).parent.parent
+
+        icon_path = base_path / 'resources' / 'logo.png'
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
 
