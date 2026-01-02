@@ -39,7 +39,7 @@ class DatabaseManager:
         if not self.connection:
             raise RuntimeError("No database connection")
         cursor = self.connection.cursor()
-        query = cursor.execute("SELECT name FROM __ribbit_views ORDER BY name")
+        query = cursor.execute("SELECT name, created_at FROM __ribbit_views ORDER BY created_at DESC")
         res = query.fetchall()
         views = []
 
@@ -151,6 +151,14 @@ class DatabaseManager:
                 'total_rows': query.rowcount
             }
 
+
+    def refresh_connection(self):
+        if not self.connection or not self.db_path:
+            raise RuntimeError("No database connection")
+
+        db_path = self.db_path
+        self.close()
+        self.open(db_path)
 
     def close(self):
         """Closes the current connection"""

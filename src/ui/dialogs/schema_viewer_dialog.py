@@ -1,4 +1,5 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit, QLabel
+from src.utils import parse_timestamp
 from typing import List, Dict, Any
 from PyQt6.QtCore import Qt
 
@@ -6,10 +7,10 @@ from PyQt6.QtCore import Qt
 class SchemaViewerDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-
-    def display_schema_dialog(self, table_name: str, columns: List[Dict[str, Any]]):
-        self.setWindowTitle(f"Schema: {table_name}")
         self.setMinimumSize(700, 400)
+
+    def display_table_schema_dialog(self, table_name: str, columns: List[Dict[str, Any]]):
+        self.setWindowTitle(f"Schema: {table_name}")
 
         layout = QVBoxLayout(self)
 
@@ -48,10 +49,26 @@ class SchemaViewerDialog(QDialog):
         table.setAlternatingRowColors(True)
 
         header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        header.setStretchLastSection(True)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
         layout.addWidget(table)
 
         self.exec()
+
+    def display_view_schema_dialog(self, view_name: str, data: Dict[str, Any]):
+        self.setWindowTitle(f"View: {view_name}")
+
+        layout = QVBoxLayout(self)
+        text_view = QTextEdit()
+        text_view.setReadOnly(True)
+        text_view.setText(data.get("sql"))
+        layout.addWidget(text_view)
+
+        datetime_label = QLabel()
+        datetime_label.setText(f"Created at: {parse_timestamp(data.get("created_at"))}")
+        datetime_label.setWordWrap(True)
+        layout.addWidget(datetime_label)
+
+        self.exec()
+
 

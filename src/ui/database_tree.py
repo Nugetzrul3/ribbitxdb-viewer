@@ -7,6 +7,7 @@ from .dialogs import SchemaViewerDialog
 from .. import APP_NAME, APP_AUTHOR
 from platformdirs import user_data_dir
 from ..core import DatabaseManager
+from ..utils import trim_string
 from typing import Optional
 from pathlib import Path
 
@@ -48,7 +49,8 @@ class DatabaseTree(QTreeWidget):
             if db_name:
                 db_name = db_name.split("/")[-1]
 
-            root = QTreeWidgetItem(self, [db_name or "Database"])
+            root = QTreeWidgetItem(self, [(db_name or "Database") + f' ({trim_string(db_path)})'])
+            root.setToolTip(0, db_path)
             root.setData(0, Qt.ItemDataRole.UserRole, {
                 'type': 'database',
                 'name': db_name,
@@ -101,6 +103,14 @@ class DatabaseTree(QTreeWidget):
             return
 
         db_manager: DatabaseManager = data.get('db_manager')
+
+        # Refresh the connection to see external changes
+        try:
+            db_manager.refresh_connection()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to refresh: {str(e)}")
+            return
+
         # load tables and views again
         item.takeChildren()
         self._load_tables(item, db_manager)
@@ -203,11 +213,20 @@ class DatabaseTree(QTreeWidget):
             view_name = data.get('name')
             view_db_manager: DatabaseManager = data.get('db_manager')
 
+            actions = []
             view_action = QAction("View Data", self)
             view_action.triggered.connect(
                 lambda: self.view_selected.emit(view_db_manager.db_path, view_name)
             )
-            menu.addAction(view_action)
+            actions.append(view_action)
+
+            schema_action = QAction("View Schema", self)
+            schema_action.triggered.connect(
+                lambda: self.show_view_schema(view_name, view_db_manager)
+            )
+            actions.append(schema_action)
+
+            menu.addActions(actions)
 
         elif item_type == 'column':
             column_info = data.get('column')
@@ -274,13 +293,27 @@ class DatabaseTree(QTreeWidget):
         try:
             column_names = db_manager.get_table_schema(table_name)
             schema_viewer = SchemaViewerDialog(self)
-            schema_viewer.display_schema_dialog(table_name, column_names)
+            schema_viewer.display_table_schema_dialog(table_name, column_names)
         except Exception as e:
             QMessageBox.warning(
                 self,
                 "Error",
                 f"Failed to retrieve schema: {str(e)}"
             )
+
+    def show_view_schema(self, view_name: str, db_manager: DatabaseManager):
+        """Show detailed schema information for a view"""
+        try:
+            view_data = db_manager.get_view_schema(view_name)
+            schema_viewer = SchemaViewerDialog(self)
+            schema_viewer.display_view_schema_dialog(view_name, view_data)
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Failed to retrieve schema: {str(e)}"
+            )
+
 
     def _load_tables(self, parent: QTreeWidgetItem, db_manager: DatabaseManager):
         """Load tables from database"""
@@ -291,8 +324,6 @@ class DatabaseTree(QTreeWidget):
                 return
 
             tables_category = QTreeWidgetItem(parent, ["Tables"])
-            tables_category.setExpanded(True)
-
             for table_name in tables:
                 table_item = QTreeWidgetItem(tables_category, [table_name])
                 table_item.setData(0, Qt.ItemDataRole.UserRole, {
