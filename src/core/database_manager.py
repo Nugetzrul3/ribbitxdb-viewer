@@ -52,7 +52,7 @@ class DatabaseManager:
         """
         Returns schema from table name
         :param table_name: Table name
-        :return: Dict[str, Any]
+        :return: List[Dict[str, Any]]
         """
 
         if not self.connection:
@@ -100,27 +100,6 @@ class DatabaseManager:
 
         return schema
 
-    def get_table_data(self, table_name: str, limit: int = 500) -> Dict[str, Any]:
-        """
-        Returns data from the selected table
-        :param table_name: Table name
-        :param limit: Number of rows to return (default 500)
-        :return: Dict[str, Any]
-        """
-
-        if not self.connection:
-            raise RuntimeError("No database connection")
-        cursor = self.connection.cursor()
-        query = cursor.execute(f"SELECT * FROM ? LIMIT ?", (table_name, limit))
-        columns = [desc[0] for desc in cursor.description] if cursor.description else []
-        rows = query.fetchall()
-
-        return {
-            'columns': columns,
-            'rows': rows,
-            'total_rows': len(rows),
-        }
-
     def get_table_data_paginated(self, table_name: str, page: int = 1, page_size: int = 100) -> Dict[str, Any]:
         """
         Returns paginated data from the selected table
@@ -153,6 +132,20 @@ class DatabaseManager:
             'page_size': page_size,
             'displayed_rows': len(rows)
         }
+
+    def delete_table(self, table_name: str):
+        if not self.connection:
+            raise RuntimeError("No database connection")
+
+        cursor = self.connection.cursor()
+        cursor.execute(f"DROP TABLE {table_name}")
+
+    def delete_view(self, view_name: str):
+        if not self.connection:
+            raise RuntimeError("No database connection")
+
+        cursor = self.connection.cursor()
+        cursor.execute(f"DROP VIEW {view_name}")
 
     def execute_query(self, sql: str) -> Dict[str, Any]:
         """

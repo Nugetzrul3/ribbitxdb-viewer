@@ -14,7 +14,7 @@ class PaginationWidget(QWidget):
         super().__init__()
         self.current_page = 1
         self.total_pages = 1
-        self.page_size = 100
+        self.page_size = 50
         self.total_rows = 0
         self.setup_ui()
 
@@ -27,8 +27,8 @@ class PaginationWidget(QWidget):
         layout.addWidget(QLabel('Rows per page:'))
 
         self.page_size_combo = QComboBox()
-        self.page_size_combo.addItems(["50", "100", "200", "500", "1000"])
-        self.page_size_combo.setCurrentText("100")
+        self.page_size_combo.addItems(["25", "50", "100", "200", "500"])
+        self.page_size_combo.setCurrentText("50")
         self.page_size_combo.currentTextChanged.connect(self.on_page_size_changed)
         self.page_size_combo.setMaximumWidth(80)
         layout.addWidget(self.page_size_combo)

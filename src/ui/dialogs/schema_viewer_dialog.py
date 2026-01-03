@@ -1,4 +1,5 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit, QLabel
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit, QLabel, \
+    QTabWidget, QPlainTextEdit
 from src.utils import parse_timestamp
 from typing import List, Dict, Any
 from PyQt6.QtCore import Qt
@@ -11,6 +12,7 @@ class SchemaViewerDialog(QDialog):
 
     def display_table_schema_dialog(self, table_name: str, columns: List[Dict[str, Any]]):
         self.setWindowTitle(f"Schema: {table_name}")
+        tab_widget = QTabWidget()
 
         layout = QVBoxLayout(self)
 
@@ -51,7 +53,14 @@ class SchemaViewerDialog(QDialog):
         header = table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
-        layout.addWidget(table)
+        tab_widget.addTab(table, 'Column Information')
+        create_script = self._build_create_script(table_name, columns)
+        text_edit = QPlainTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setPlainText(create_script)
+        tab_widget.addTab(text_edit, 'Create Script')
+
+        layout.addWidget(tab_widget)
 
         self.exec()
 
@@ -70,5 +79,38 @@ class SchemaViewerDialog(QDialog):
         layout.addWidget(datetime_label)
 
         self.exec()
+
+    @classmethod
+    def _build_create_script(cls, table_name: str, columns: List[Dict[str, Any]]):
+        script = f"CREATE TABLE {table_name} (\n"
+        for idx, col in enumerate(columns):
+            col_def = f"\t{col['column_name']} {col['column_type']}"
+
+            if col['primary_key']:
+                col_def += " PRIMARY KEY"
+
+            if col['auto_increment']:
+                col_def += " AUTOINCREMENT"
+
+            if col['not_null']:
+                col_def += " NOT NULL"
+
+            if col['unique_constraint']:
+                col_def += " UNIQUE"
+
+            if col['default_value']:
+                col_def += f" DEFAULT {col['default_value']}"
+
+            if col['check_expression']:
+                col_def += f" CHECK ({col['check_expression']})"
+
+            # need to add foreign key, having issues with creating
+            # table with foreign key though
+
+            script += col_def + (",\n" if idx < len(columns) - 1 else "\n")
+
+        script += ");"
+
+        return script
 
 

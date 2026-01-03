@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
-    QSplitter, QToolBar, QMessageBox
+    QSplitter, QToolBar, QMessageBox, QTabWidget
 )
-from PyQt6.QtGui import QAction, QKeySequence, QIcon
+from PyQt6.QtGui import QAction, QKeySequence, QIcon, QActionGroup
 from .database_tree import DatabaseTree
 from .dialogs import OpenDatabaseDialog
 from PyQt6.QtCore import Qt, QSettings
@@ -59,9 +59,14 @@ class MainWindow(QMainWindow):
         self.db_tree.view_selected.connect(self.on_table_selected)
         self.db_tree.database_disconnected.connect(self.on_database_disconnected)
         self.db_tree.database_refreshed.connect(self.on_database_refreshed)
+        self.db_tree.query_copied.connect(self.on_query_copied)
+        self.db_tree.views_refreshed.connect(self.on_views_refreshed)
+        self.db_tree.view_deleted.connect(self.on_view_deleted)
+        self.db_tree.tables_refreshed.connect(self.on_tables_refreshed)
+        self.db_tree.table_deleted.connect(self.on_table_deleted)
         self.db_tree.setMinimumWidth(200)
 
-        # Right: Vertical splitter for table view and query editor
+        # Right: Vertical splitter for table view
         v_splitter = QSplitter(Qt.Orientation.Vertical)
 
         self.table_viewer = TableViewer()
@@ -118,20 +123,28 @@ class MainWindow(QMainWindow):
         self.addToolBar(toolbar)
 
         # Add common actions
-        open_action = QAction("Open", self)
-        open_action.triggered.connect(self.open_database)
-        toolbar.addAction(open_action)
+        open_database_viewer_action = QAction("Database Viewer", self)
+        open_database_viewer_action.triggered.connect(self.open_database_viewer)
+        toolbar.addAction(open_database_viewer_action)
 
         toolbar.addSeparator()
 
-        execute_action = QAction("Execute", self)
-        execute_action.setShortcut("F5")
-        # execute_action.triggered.connect(self.query_editor.execute)
-        toolbar.addAction(execute_action)
+        open_execute_query_action = QAction("Query Editor", self)
+        open_execute_query_action.triggered.connect(self.open_query_editor)
+        toolbar.addAction(open_execute_query_action)
 
     def _create_statusbar(self):
         """Create status bar"""
         self.statusBar().showMessage("Ready")
+
+    def open_database_viewer(self):
+        """Hide query editor and open database viewer"""
+        # self.query_editor.hide()
+        self.table_viewer.show()
+
+    def open_query_editor(self):
+        self.table_viewer.hide()
+        # self.query_editor.show()
 
     def open_database(self):
         """Open database dialog"""
@@ -139,6 +152,7 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             filepath = dialog.get_filepath()
             filepath = Path(filepath).as_posix()
+            self.open_database_viewer()
 
             # Check if already open
             if filepath in self.db_managers:
@@ -176,6 +190,7 @@ class MainWindow(QMainWindow):
             self.table_viewer.display_data(data, db_manager, table_name)
 
             total_pages = self.table_viewer.pagination.total_pages
+            self.open_database_viewer()
             self.statusBar().showMessage(
                 f"Viewing: {table_name} (Page 1 of {total_pages})"
             )
@@ -204,6 +219,21 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"{db_path} refreshed")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to refresh database: {str(e)}")
+
+    def on_query_copied(self, table_name: str, query_type: str):
+        self.statusBar().showMessage(f"{query_type} query for {table_name} copied to clipboard")
+
+    def on_views_refreshed(self, db_name: str):
+        self.statusBar().showMessage(f"Views for {db_name} refreshed")
+
+    def on_view_deleted(self, view_name: str, db_name: str):
+        self.statusBar().showMessage(f"View {view_name} deleted from {db_name}")
+
+    def on_tables_refreshed(self, db_name: str):
+        self.statusBar().showMessage(f"Tables for {db_name} refreshed")
+
+    def on_table_deleted(self, table_name: str, db_name: str):
+        self.statusBar().showMessage(f"Table {table_name} deleted from {db_name}")
 
     def _load_dbs(self):
         """Load databases saved in csv"""

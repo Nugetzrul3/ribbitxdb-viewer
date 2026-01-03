@@ -20,6 +20,11 @@ class DatabaseTree(QTreeWidget):
     view_selected = pyqtSignal(str, str)
     database_disconnected = pyqtSignal(str)
     database_refreshed = pyqtSignal(str)
+    query_copied = pyqtSignal(str, str)
+    views_refreshed = pyqtSignal(str)
+    view_deleted = pyqtSignal(str, str)
+    tables_refreshed = pyqtSignal(str)
+    table_deleted = pyqtSignal(str, str)
 
     def __init__(self):
         super().__init__()
@@ -88,6 +93,58 @@ class DatabaseTree(QTreeWidget):
 
         # Emit signal with database path so main_window can close the connection
         self.database_disconnected.emit(db_path)
+
+    def refresh_views(self, parent: QTreeWidgetItem, is_deleting: bool = False):
+        """Refresh views for database"""
+        item = self.currentItem()
+        item.setExpanded(False)
+
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        db_manager: DatabaseManager = data.get('db_manager')
+
+        # check if db still exists
+        if not Path(db_manager.db_path).exists():
+            self.disconnect_database()
+            return
+
+        # Refresh the connection to see external changes
+        try:
+            db_manager.refresh_connection()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to refresh: {str(e)}")
+            return
+
+        parent.takeChildren()
+        self._load_views(parent, db_manager, is_refresh=True)
+
+        if not is_deleting:
+            self.views_refreshed.emit(db_manager.db_path)
+
+    def refresh_tables(self, parent: QTreeWidgetItem, is_deleting: bool = False):
+        """Refresh tables for database"""
+        item = self.currentItem()
+        item.setExpanded(False)
+
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        db_manager: DatabaseManager = data.get('db_manager')
+
+        # check if db still exists
+        if not Path(db_manager.db_path).exists():
+            self.disconnect_database()
+            return
+
+        # Refresh the connection to see external changes
+        try:
+            db_manager.refresh_connection()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to refresh: {str(e)}")
+            return
+
+        parent.takeChildren()
+        self._load_tables(parent, db_manager, is_refresh=True)
+
+        if not is_deleting:
+            self.tables_refreshed.emit(db_manager.db_path)
 
     def refresh_database(self):
         """Refresh database tables and views"""
@@ -167,47 +224,75 @@ class DatabaseTree(QTreeWidget):
         if item_type == 'table':
             table_name = data.get('name')
             table_db_manager: DatabaseManager = data.get('db_manager')
+            actions = []
 
             view_action = QAction("View Data", self)
             view_action.triggered.connect(
                 lambda: self.table_selected.emit(table_db_manager.db_path, table_name)
             )
-            menu.addAction(view_action)
+            actions.append(view_action)
 
             schema_action = QAction("View Schema", self)
             schema_action.triggered.connect(
                 lambda: self.show_table_schema(table_name, table_db_manager)
             )
-            menu.addAction(schema_action)
+            actions.append(schema_action)
 
-            menu.addSeparator()
+            actions.append(menu.addSeparator())
 
             copy_action = QAction("Copy Table Name", self)
             copy_action.triggered.connect(
                 lambda: self.copy_to_clipboard(table_name)
             )
-            menu.addAction(copy_action)
+            actions.append(copy_action)
 
             query_menu = QMenu(self)
             query_menu.setTitle("Generate query")
-            actions = []
+            query_actions = []
 
             select_action = QAction("Generate SELECT Query", self)
             select_action.triggered.connect(
-                lambda: self.generate_select_query(table_name)
+                lambda: self.generate_select_query(table_name, table_db_manager)
             )
-            actions.append(select_action)
+            query_actions.append(select_action)
 
             insert_action = QAction("Generate INSERT Query", self)
             insert_action.triggered.connect(
                 lambda: self.generate_insert_query(table_name, table_db_manager)
             )
-            actions.append(insert_action)
+            query_actions.append(insert_action)
 
-            # add update and delete queries
+            update_action = QAction("Generate UPDATE Query", self)
+            update_action.triggered.connect(
+                lambda: self.generate_update_query(table_name, table_db_manager))
+            query_actions.append(update_action)
 
-            query_menu.addActions(actions)
+            delete_action = QAction("Generate DELETE Query", self)
+            delete_action.triggered.connect(
+                lambda: self.generate_delete_query(table_name, table_db_manager)
+            )
+            query_actions.append(delete_action)
+
+            menu.addActions(actions)
+            query_menu.addActions(query_actions)
             menu.addMenu(query_menu)
+
+            actions = [menu.addSeparator()]
+
+            delete_table_action = QAction("Delete Table", self)
+            delete_table_action.triggered.connect(
+                lambda: self.delete_table(table_name, table_db_manager)
+            )
+            actions.append(delete_table_action)
+
+            menu.addActions(actions)
+
+        elif item_type == 'tables':
+            refresh_tables_action = QAction("Refresh Tables", self)
+            refresh_tables_action.triggered.connect(
+                lambda: self.refresh_tables(item)
+            )
+            menu.addAction(refresh_tables_action)
 
         elif item_type == 'view':
             view_name = data.get('name')
@@ -226,7 +311,22 @@ class DatabaseTree(QTreeWidget):
             )
             actions.append(schema_action)
 
+            actions.append(menu.addSeparator())
+
+            delete_action = QAction("Delete View", self)
+            delete_action.triggered.connect(
+                lambda: self.delete_view(view_name, view_db_manager)
+            )
+            actions.append(delete_action)
+
             menu.addActions(actions)
+
+        elif item_type == 'views':
+            refresh_views_action = QAction("Refresh Tables", self)
+            refresh_views_action.triggered.connect(
+                lambda: self.refresh_views(item)
+            )
+            menu.addAction(refresh_views_action)
 
         elif item_type == 'column':
             column_info = data.get('column')
@@ -259,16 +359,19 @@ class DatabaseTree(QTreeWidget):
         clipboard = QApplication.clipboard()
         clipboard.setText(text)
 
-    def generate_select_query(self, table_name: str):
+    def generate_select_query(self, table_name: str, db_manager: DatabaseManager):
         """Generate and copy SELECT query to clipboard"""
-        query = f"SELECT * FROM {table_name};"
-        self.copy_to_clipboard(query)
+        query = "SELECT \n"
+        schema = db_manager.get_table_schema(table_name)
+        columns = [x.get('column_name') for x in schema]
+        for idx, column in enumerate(columns):
+            query += f"\t{column}" + (",\n" if idx < len(columns) - 1 else "\n")
+        query += "WHERE \n"
+        for idx, column in enumerate(columns):
+            query += f"\t{column} = '{column}'" + (" AND\n" if idx < len(columns) - 1 else ";")
 
-        QMessageBox.information(
-            self,
-            "Query Copied",
-            f"SELECT query for '{table_name}' copied to clipboard!"
-        )
+        self.copy_to_clipboard(query)
+        self.query_copied.emit(table_name, "SELECT")
 
     def generate_insert_query(self, table_name: str, db_manager: DatabaseManager):
         """Generate and copy INSERT query to clipboard"""
@@ -277,16 +380,58 @@ class DatabaseTree(QTreeWidget):
         columns_seperated = ", ".join(columns)
         columns_stringified = [f"'{x}'" for x in columns]
         columns_stringified_seperated = ", ".join(columns_stringified)
-        query = (f"INSERT INTO {table_name} ({columns_seperated}) "
-                 f"VALUES ({columns_stringified_seperated});")
+        query = (f"INSERT INTO {table_name}"
+                 f"\n\t({columns_seperated})"
+                 f"\nVALUES \n\t({columns_stringified_seperated});")
         self.copy_to_clipboard(query)
+        self.query_copied.emit(table_name, "INSERT")
 
-        QMessageBox.information(
-            self,
-            "Query Copied",
-            f"INSERT query for '{table_name}' copied to clipboard!"
-        )
+    def generate_update_query(self, table_name: str, db_manager: DatabaseManager):
+        """Generate and copy UPDATE query to clipboard"""
+        schema = db_manager.get_table_schema(table_name)
+        columns = [x.get('column_name') for x in schema]
+        query = f"UPDATE {table_name} SET\n"
+        for idx, column in enumerate(columns):
+            query += f"\t{column} = '{column}'" + (",\n" if idx < len(columns) - 1 else "\n")
 
+        query += "WHERE\n"
+
+        for idx, column in enumerate(columns):
+            query += f"\t{column} = '{column}'" + (" AND\n" if idx < len(columns) - 1 else "\n;")
+
+        self.copy_to_clipboard(query)
+        self.query_copied.emit(table_name, "UPDATE")
+
+    def generate_delete_query(self, table_name: str, db_manager: DatabaseManager):
+        """Generate and copy DELETE query to clipboard"""
+        schema = db_manager.get_table_schema(table_name)
+        columns = [x.get('column_name') for x in schema]
+        query = f"DELETE FROM {table_name} WHERE\n"
+        for idx, column in enumerate(columns):
+            query += f"\t{column} = '{column}'" + (" AND\n" if idx < len(columns) - 1 else ";")
+
+        self.copy_to_clipboard(query)
+        self.query_copied.emit(table_name, "DELETE")
+
+    def delete_view(self, view_name: str, db_manager: DatabaseManager):
+        """Drop the view selected"""
+        try:
+            db_manager.delete_view(view_name)
+            parent = self.currentItem().parent()
+            self.refresh_views(parent, is_deleting=True)
+            self.view_deleted.emit(view_name, db_manager.db_path)
+        except Exception as e:
+            QMessageBox.warning(self, "Database Error", str(e))
+
+    def delete_table(self, table_name: str, db_manager: DatabaseManager):
+        """Drop the table selected"""
+        try:
+            db_manager.delete_table(table_name)
+            parent = self.currentItem().parent()
+            self.refresh_tables(parent, is_deleting=True)
+            self.table_deleted.emit(table_name, db_manager.db_path)
+        except Exception as e:
+            QMessageBox.warning(self, "Database Error", str(e))
 
     def show_table_schema(self, table_name: str, db_manager: DatabaseManager):
         """Show detailed schema information for a table"""
@@ -315,7 +460,7 @@ class DatabaseTree(QTreeWidget):
             )
 
 
-    def _load_tables(self, parent: QTreeWidgetItem, db_manager: DatabaseManager):
+    def _load_tables(self, parent: QTreeWidgetItem, db_manager: DatabaseManager, is_refresh: bool = False):
         """Load tables from database"""
         try:
             tables = db_manager.get_tables()
@@ -323,7 +468,15 @@ class DatabaseTree(QTreeWidget):
             if not tables:
                 return
 
-            tables_category = QTreeWidgetItem(parent, ["Tables"])
+            if not is_refresh:
+                tables_category = QTreeWidgetItem(parent, ["Tables"])
+                tables_category.setData(0, Qt.ItemDataRole.UserRole, {
+                    'type': 'tables',
+                    'db_manager': db_manager
+                })
+            else:
+                tables_category = parent
+
             for table_name in tables:
                 table_item = QTreeWidgetItem(tables_category, [table_name])
                 table_item.setData(0, Qt.ItemDataRole.UserRole, {
@@ -332,10 +485,12 @@ class DatabaseTree(QTreeWidget):
                     'db_manager': db_manager
                 })
 
+            tables_category.setExpanded(True)
+
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load database tables: {str(e)}")
 
-    def _load_views(self, parent: QTreeWidgetItem, db_manager: DatabaseManager):
+    def _load_views(self, parent: QTreeWidgetItem, db_manager: DatabaseManager, is_refresh: bool = False):
         """Load views from database"""
         try:
             views = db_manager.get_views()
@@ -343,8 +498,14 @@ class DatabaseTree(QTreeWidget):
             if not views:
                 return
 
-            views_category = QTreeWidgetItem(parent, ["Views"])
-            views_category.setExpanded(False)
+            if not is_refresh:
+                views_category = QTreeWidgetItem(parent, ["Views"])
+                views_category.setData(0, Qt.ItemDataRole.UserRole, {
+                    'type': 'views',
+                    'db_manager': db_manager
+                })
+            else:
+                views_category = parent
 
             for view_name in views:
                 view_item = QTreeWidgetItem(views_category, [view_name])
@@ -353,6 +514,8 @@ class DatabaseTree(QTreeWidget):
                     'name': view_name,
                     'db_manager': db_manager
                 })
+
+            views_category.setExpanded(True)
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load database views: {str(e)}")
