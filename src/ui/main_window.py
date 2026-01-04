@@ -250,10 +250,11 @@ class MainWindow(QMainWindow):
         data_dir_path = Path(data_dir)
         db_list = []
 
-        with open(data_dir_path / "databases.csv", 'r', newline="") as csvfile:
-            reader = csv.reader(csvfile)
-            for row in reader:
-                db_list.append(row[0])
+        if Path(data_dir_path / "databases.csv").exists():
+            with open(data_dir_path / "databases.csv", 'r', newline="") as csvfile:
+                reader = csv.reader(csvfile)
+                for row in reader:
+                    db_list.append(row[0])
 
         # I have plans to make it so that we don't load all the dbs immediately, but for now
         # I will keep it this way
