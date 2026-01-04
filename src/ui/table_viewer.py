@@ -13,10 +13,11 @@ class TableViewer(QWidget):
         super().__init__()
         self.current_table: Optional[str] = None
         self.current_db_manager: Optional[DatabaseManager] = None
-        # self.model = DatabaseTableModel()
-        # self.proxy_model = QSortFilterProxyModel()
-        # self.proxy_model.setSourceModel(self.model)
-        # self.setModel(self.proxy_model)
+        self.table_view = QTableView()
+        self.data_model = DatabaseTableModel()
+        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model.setSourceModel(self.data_model)
+        self.table_view.setModel(self.proxy_model)
         self.setup_ui()
 
     def setup_ui(self):
@@ -24,12 +25,6 @@ class TableViewer(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-
-        self.table_view = QTableView()
-        self.data_model = DatabaseTableModel()
-        self.proxy_model = QSortFilterProxyModel()
-        self.proxy_model.setSourceModel(self.data_model)
-        self.table_view.setModel(self.proxy_model)
 
         self.setup_table_view()
         layout.addWidget(self.table_view)

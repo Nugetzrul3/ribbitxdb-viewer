@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QMenu, QMessageBox
 )
+from .dialogs.accept_action_dialog import AcceptActionDialog
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
 from PyQt6.QtGui import QAction, QCursor
 from .dialogs import SchemaViewerDialog
@@ -107,13 +108,6 @@ class DatabaseTree(QTreeWidget):
             self.disconnect_database()
             return
 
-        # Refresh the connection to see external changes
-        try:
-            db_manager.refresh_connection()
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to refresh: {str(e)}")
-            return
-
         parent.takeChildren()
         self._load_views(parent, db_manager, is_refresh=True)
 
@@ -131,13 +125,6 @@ class DatabaseTree(QTreeWidget):
         # check if db still exists
         if not Path(db_manager.db_path).exists():
             self.disconnect_database()
-            return
-
-        # Refresh the connection to see external changes
-        try:
-            db_manager.refresh_connection()
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to refresh: {str(e)}")
             return
 
         parent.takeChildren()
@@ -160,13 +147,6 @@ class DatabaseTree(QTreeWidget):
             return
 
         db_manager: DatabaseManager = data.get('db_manager')
-
-        # Refresh the connection to see external changes
-        try:
-            db_manager.refresh_connection()
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to refresh: {str(e)}")
-            return
 
         # load tables and views again
         item.takeChildren()
@@ -322,7 +302,7 @@ class DatabaseTree(QTreeWidget):
             menu.addActions(actions)
 
         elif item_type == 'views':
-            refresh_views_action = QAction("Refresh Tables", self)
+            refresh_views_action = QAction("Refresh Views", self)
             refresh_views_action.triggered.connect(
                 lambda: self.refresh_views(item)
             )
@@ -415,23 +395,37 @@ class DatabaseTree(QTreeWidget):
 
     def delete_view(self, view_name: str, db_manager: DatabaseManager):
         """Drop the view selected"""
-        try:
-            db_manager.delete_view(view_name)
-            parent = self.currentItem().parent()
-            self.refresh_views(parent, is_deleting=True)
-            self.view_deleted.emit(view_name, db_manager.db_path)
-        except Exception as e:
-            QMessageBox.warning(self, "Database Error", str(e))
+        delete_view_dialog = AcceptActionDialog(
+            self,
+            "Delete Table",
+            f"Are you sure you want to delete view '{view_name}'?'"
+        )
+
+        if delete_view_dialog.exec():
+            try:
+                db_manager.delete_view(view_name)
+                parent = self.currentItem().parent()
+                self.refresh_views(parent, is_deleting=True)
+                self.view_deleted.emit(view_name, db_manager.db_path)
+            except Exception as e:
+                QMessageBox.warning(self, "Database Error", str(e))
 
     def delete_table(self, table_name: str, db_manager: DatabaseManager):
         """Drop the table selected"""
-        try:
-            db_manager.delete_table(table_name)
-            parent = self.currentItem().parent()
-            self.refresh_tables(parent, is_deleting=True)
-            self.table_deleted.emit(table_name, db_manager.db_path)
-        except Exception as e:
-            QMessageBox.warning(self, "Database Error", str(e))
+        delete_table_dialog = AcceptActionDialog(
+            self,
+            "Delete Table",
+            f"Are you sure you want to delete table '{table_name}'?'"
+        )
+
+        if delete_table_dialog.exec():
+            try:
+                db_manager.delete_table(table_name)
+                parent = self.currentItem().parent()
+                self.refresh_tables(parent, is_deleting=True)
+                self.table_deleted.emit(table_name, db_manager.db_path)
+            except Exception as e:
+                QMessageBox.warning(self, "Database Error", str(e))
 
     def show_table_schema(self, table_name: str, db_manager: DatabaseManager):
         """Show detailed schema information for a table"""
@@ -465,9 +459,6 @@ class DatabaseTree(QTreeWidget):
         try:
             tables = db_manager.get_tables()
 
-            if not tables:
-                return
-
             if not is_refresh:
                 tables_category = QTreeWidgetItem(parent, ["Tables"])
                 tables_category.setData(0, Qt.ItemDataRole.UserRole, {
@@ -476,6 +467,9 @@ class DatabaseTree(QTreeWidget):
                 })
             else:
                 tables_category = parent
+
+            if not tables:
+                return
 
             for table_name in tables:
                 table_item = QTreeWidgetItem(tables_category, [table_name])
@@ -495,9 +489,6 @@ class DatabaseTree(QTreeWidget):
         try:
             views = db_manager.get_views()
 
-            if not views:
-                return
-
             if not is_refresh:
                 views_category = QTreeWidgetItem(parent, ["Views"])
                 views_category.setData(0, Qt.ItemDataRole.UserRole, {
@@ -506,6 +497,9 @@ class DatabaseTree(QTreeWidget):
                 })
             else:
                 views_category = parent
+
+            if not views:
+                return
 
             for view_name in views:
                 view_item = QTreeWidgetItem(views_category, [view_name])

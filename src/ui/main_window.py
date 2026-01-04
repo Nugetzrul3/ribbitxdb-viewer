@@ -51,6 +51,7 @@ class MainWindow(QMainWindow):
 
         # Horizontal splitter: sidebar | content
         h_splitter = QSplitter(Qt.Orientation.Horizontal)
+        h_splitter.setChildrenCollapsible(False)
 
         # Left: Database tree
         self.db_tree = DatabaseTree()
@@ -66,20 +67,21 @@ class MainWindow(QMainWindow):
         self.db_tree.table_deleted.connect(self.on_table_deleted)
         self.db_tree.setMinimumWidth(200)
 
-        # Right: Vertical splitter for table view
-        v_splitter = QSplitter(Qt.Orientation.Vertical)
+        # Will use this for query editor
+        # v_splitter = QSplitter(Qt.Orientation.Vertical)
 
-        self.table_viewer = TableViewer()
+        self.db_table_viewer = TableViewer()
+        self.query_table_viewer = TableViewer()
         # self.query_editor = QueryEditor()
         # self.query_editor.query_executed.connect(self.execute_query)
 
-        v_splitter.addWidget(self.table_viewer)
-        # v_splitter.addWidget(self.query_editor)
-        v_splitter.setStretchFactor(0, 2)
-        v_splitter.setStretchFactor(1, 1)
+        # v_splitter.addWidget(self.table_viewer)
+        # # v_splitter.addWidget(self.query_editor)
+        # v_splitter.setStretchFactor(0, 2)
+        # v_splitter.setStretchFactor(1, 1)
 
         h_splitter.addWidget(self.db_tree)
-        h_splitter.addWidget(v_splitter)
+        h_splitter.addWidget(self.db_table_viewer)
         h_splitter.setStretchFactor(0, 2)
         h_splitter.setStretchFactor(1, 4)
 
@@ -140,10 +142,10 @@ class MainWindow(QMainWindow):
     def open_database_viewer(self):
         """Hide query editor and open database viewer"""
         # self.query_editor.hide()
-        self.table_viewer.show()
+        self.db_table_viewer.show()
 
     def open_query_editor(self):
-        self.table_viewer.hide()
+        self.db_table_viewer.hide()
         # self.query_editor.show()
 
     def open_database(self):
@@ -165,8 +167,7 @@ class MainWindow(QMainWindow):
 
             try:
                 # Create new database manager for this connection and store
-                db_manager = DatabaseManager()
-                db_manager.open(filepath)
+                db_manager = DatabaseManager(filepath)
 
                 self.db_managers[db_manager.db_path] = db_manager
 
@@ -184,12 +185,12 @@ class MainWindow(QMainWindow):
 
         try:
             db_manager = self.db_managers[db_path]
-            page_size = self.table_viewer.pagination.page_size
+            page_size = self.db_table_viewer.pagination.page_size
 
             data = db_manager.get_table_data_paginated(table_name, page=1, page_size=page_size)
-            self.table_viewer.display_data(data, db_manager, table_name)
+            self.db_table_viewer.display_data(data, db_manager, table_name)
 
-            total_pages = self.table_viewer.pagination.total_pages
+            total_pages = self.db_table_viewer.pagination.total_pages
             self.open_database_viewer()
             self.statusBar().showMessage(
                 f"Viewing: {table_name} (Page 1 of {total_pages})"
@@ -202,11 +203,9 @@ class MainWindow(QMainWindow):
         try:
             # Get and close the specific database manager
             if db_path in self.db_managers:
-                db_manager = self.db_managers[db_path]
-                db_manager.close()
                 del self.db_managers[db_path]
 
-            self.table_viewer.clear_data()
+            self.db_table_viewer.clear_data()
             self.statusBar().showMessage(f"{db_path} disconnected")
 
         except Exception as e:
@@ -215,7 +214,7 @@ class MainWindow(QMainWindow):
     def on_database_refreshed(self, db_path: str):
         """Handle database refreshed"""
         try:
-            self.table_viewer.clear_data()
+            self.db_table_viewer.clear_data()
             self.statusBar().showMessage(f"{db_path} refreshed")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to refresh database: {str(e)}")
@@ -249,8 +248,7 @@ class MainWindow(QMainWindow):
         # I have plans to make it so that we don't load all the dbs immediately, but for now
         # I will keep it this way
         for db_path in db_list:
-            db_manager = DatabaseManager()
-            db_manager.open(db_path)
+            db_manager = DatabaseManager(db_path)
             self.db_tree.load_database(db_manager)
             self.db_managers[db_path] = db_manager
 
