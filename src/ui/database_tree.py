@@ -50,12 +50,10 @@ class DatabaseTree(QTreeWidget):
 
     def load_database(self, db_manager: DatabaseManager):
         try:
-            db_name = db_manager.db_path
+            db_name = db_manager.db_name
             db_path = db_manager.db_path
-            if db_name:
-                db_name = db_name.split("/")[-1]
 
-            root = QTreeWidgetItem(self, [(db_name or "Database") + f' ({trim_string(db_path)})'])
+            root = QTreeWidgetItem(self, [f'{db_name} ({trim_string(db_path)})'])
             root.setToolTip(0, db_path)
             root.setData(0, Qt.ItemDataRole.UserRole, {
                 'type': 'database',

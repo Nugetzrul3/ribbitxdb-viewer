@@ -1,12 +1,14 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
-    QSplitter, QToolBar, QMessageBox, QTabWidget
+    QSplitter, QToolBar, QMessageBox, QTabWidget, QLabel
 )
 from PyQt6.QtGui import QAction, QKeySequence, QIcon, QActionGroup
+from .dialogs.about_dialog import AboutDialog
 from .database_tree import DatabaseTree
 from .dialogs import OpenDatabaseDialog
 from PyQt6.QtCore import Qt, QSettings
 from platformdirs import user_data_dir
+from .query_editor import QueryEditor
 from .table_viewer import TableViewer
 from .. import APP_NAME, APP_AUTHOR
 from ..core import DatabaseManager
@@ -50,8 +52,8 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
 
         # Horizontal splitter: sidebar | content
-        h_splitter = QSplitter(Qt.Orientation.Horizontal)
-        h_splitter.setChildrenCollapsible(False)
+        self.h_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.h_splitter.setChildrenCollapsible(False)
 
         # Left: Database tree
         self.db_tree = DatabaseTree()
@@ -68,24 +70,23 @@ class MainWindow(QMainWindow):
         self.db_tree.setMinimumWidth(200)
 
         # Will use this for query editor
-        # v_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.v_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.v_splitter.setWindowTitle('Query Editor')
+        self.v_splitter.setChildrenCollapsible(False)
 
         self.db_table_viewer = TableViewer()
         self.query_table_viewer = TableViewer()
-        # self.query_editor = QueryEditor()
-        # self.query_editor.query_executed.connect(self.execute_query)
+        self.query_editor = QueryEditor()
 
-        # v_splitter.addWidget(self.table_viewer)
-        # # v_splitter.addWidget(self.query_editor)
-        # v_splitter.setStretchFactor(0, 2)
-        # v_splitter.setStretchFactor(1, 1)
+        self.v_splitter.addWidget(self.query_editor)
+        self.v_splitter.addWidget(self.query_table_viewer)
 
-        h_splitter.addWidget(self.db_tree)
-        h_splitter.addWidget(self.db_table_viewer)
-        h_splitter.setStretchFactor(0, 2)
-        h_splitter.setStretchFactor(1, 4)
+        self.h_splitter.addWidget(self.db_tree)
+        self.h_splitter.addWidget(self.db_table_viewer)
+        self.h_splitter.setStretchFactor(0, 2)
+        self.h_splitter.setStretchFactor(1, 4)
 
-        main_layout.addWidget(h_splitter)
+        main_layout.addWidget(self.h_splitter)
 
     def _create_menus(self):
         """Create menu bar"""
@@ -106,9 +107,6 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        # Edit menu
-        edit_menu = menubar.addMenu("&Edit")
-
         # View menu
         view_menu = menubar.addMenu("&View")
 
@@ -119,9 +117,15 @@ class MainWindow(QMainWindow):
         # export_action.triggered.connect(self.export_data)
         tools_menu.addAction(export_action)
 
+        help_menu = menubar.addMenu("&Help")
+        about_action = QAction("&About...", self)
+        about_action.triggered.connect(self.open_about_dialog)
+        help_menu.addAction(about_action)
+
     def _create_toolbar(self):
         """Create toolbar"""
         toolbar = QToolBar("Main Toolbar")
+        toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
         # Add common actions
@@ -141,12 +145,13 @@ class MainWindow(QMainWindow):
 
     def open_database_viewer(self):
         """Hide query editor and open database viewer"""
-        # self.query_editor.hide()
-        self.db_table_viewer.show()
+        if self.h_splitter.widget(1).windowTitle() != "Table Viewer":
+            self.h_splitter.replaceWidget(1, self.db_table_viewer)
 
     def open_query_editor(self):
-        self.db_table_viewer.hide()
-        # self.query_editor.show()
+        """Hide database viewer and open query editor"""
+        if self.h_splitter.widget(1).windowTitle() != "Query Editor":
+            self.h_splitter.replaceWidget(1, self.v_splitter)
 
     def open_database(self):
         """Open database dialog"""
@@ -177,6 +182,11 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(f"Opened: {filepath}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to open database: {str(e)}")
+
+    def open_about_dialog(self):
+        """Open about dialog"""
+        dialog = AboutDialog(self)
+        dialog.show()
 
     def on_table_selected(self, db_path: str, table_name: str):
         """Handle table selection from tree"""

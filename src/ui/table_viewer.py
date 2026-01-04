@@ -11,6 +11,7 @@ class TableViewer(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("Table Viewer")
         self.current_table: Optional[str] = None
         self.current_db_manager: Optional[DatabaseManager] = None
         self.table_view = QTableView()

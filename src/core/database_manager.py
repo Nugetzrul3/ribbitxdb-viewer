@@ -8,6 +8,7 @@ class DatabaseManager:
 
     def __init__(self, db_path: str):
         self.db_path = Path(db_path).as_posix()
+        self.db_name = self.db_path.split("/")[-1]
 
     def get_tables(self) -> List[str]:
         """Returns a list of table names"""
@@ -168,10 +169,11 @@ class DatabaseManager:
         cursor.execute(f"DROP VIEW {view_name}")
         connection.close()
 
-    def execute_query(self, sql: str) -> Dict[str, Any]:
+    def execute_query(self, sql: str, max_rows: int = 5000) -> Dict[str, Any]:
         """
         Executes arbitrary query
         :param sql: SQL query
+        :param max_rows: Maximum number of rows to fetch
         :return: Dict[str, Any]
         """
 
@@ -186,19 +188,38 @@ class DatabaseManager:
         if query.description:
             # This is a SELECT query
             columns = [desc[0] for desc in query.description]
-            rows = query.fetchall()
-            connection.close()
-            return {
-                'columns': columns,
-                'rows': rows,
-                'total_rows': len(rows)
-            }
+
+            if max_rows > 0:
+                rows = query.fetchmany(max_rows + 1)
+                has_more = len(rows) > 0
+                connection.close()
+
+                return {
+                    'columns': columns,
+                    'rows': rows,
+                    'total_rows': len(rows),
+                    'truncated': has_more,
+                    'max_rows': max_rows,
+                }
+            # For this case, we could allow the user to do a fetch all
+            # for big tables however, since the rows are loaded into memory
+            # it could be an issue
+            else:
+                rows = query.fetchall()
+                connection.close()
+                return {
+                    'columns': columns,
+                    'rows': rows,
+                    'total_rows': len(rows),
+                    'truncated': False,
+                }
         else:
             # INSERT/UPDATE/DELETE query
             connection.commit()
-            connection.close()
             return {
                 'columns': [],
                 'rows': [],
-                'total_rows': query.rowcount
+                'rows_affected': query.rowcount,
+                'total_rows': 0,
+                'truncated': False
             }
