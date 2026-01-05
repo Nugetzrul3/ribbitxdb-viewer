@@ -41,6 +41,8 @@ class DatabaseTree(QTreeWidget):
         self.setAnimated(True)
         self.setIndentation(10)
         self.setSelectionMode(QTreeWidget.SelectionMode.SingleSelection)
+        self.setVerticalScrollMode(QTreeWidget.ScrollMode.ScrollPerPixel)
+        self.setHorizontalScrollMode(QTreeWidget.ScrollMode.ScrollPerPixel)
 
     def setup_connections(self):
         """Connect signals and slots"""

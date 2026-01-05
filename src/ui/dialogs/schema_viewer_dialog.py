@@ -23,6 +23,8 @@ class SchemaViewerDialog(QDialog):
 
         table = QTableWidget()
         table.itemDoubleClicked.connect(self.on_item_double_clicked)
+        table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
+        table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         table.setColumnCount(8)
         table.setRowCount(len(columns))
         table.setHorizontalHeaderLabels([

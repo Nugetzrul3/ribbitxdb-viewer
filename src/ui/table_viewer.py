@@ -41,9 +41,8 @@ class TableViewer(QWidget):
         self.table_view.setAlternatingRowColors(True)
         self.table_view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
         self.table_view.setEditTriggers(QTableView.EditTrigger.DoubleClicked)
-
-        h_header = self.table_view.horizontalHeader()
-        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table_view.setVerticalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
+        self.table_view.setHorizontalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
 
         v_header = self.table_view.verticalHeader()
         v_header.setVisible(True)
@@ -57,12 +56,14 @@ class TableViewer(QWidget):
         self.current_db_manager = db_manager
         self.current_table = table_name
 
+        h_header = self.table_view.horizontalHeader()
+        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
         self.table_view.setSortingEnabled(False)
         self.data_model.set_data(data)
         self.table_view.setSortingEnabled(True)
         self.table_view.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
 
-        h_header = self.table_view.horizontalHeader()
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         h_header.setStretchLastSection(True)
 
