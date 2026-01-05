@@ -178,6 +178,7 @@ class MainWindow(QMainWindow):
 
                 # Load tree with this manager
                 self.db_tree.load_database(db_manager)
+                self.query_editor.add_db(db_manager)
 
                 self.statusBar().showMessage(f"Opened: {filepath}")
             except Exception as e:
@@ -213,6 +214,7 @@ class MainWindow(QMainWindow):
         try:
             # Get and close the specific database manager
             if db_path in self.db_managers:
+                self.query_editor.remove_db(db_path)
                 del self.db_managers[db_path]
 
             self.db_table_viewer.clear_data()
@@ -262,6 +264,8 @@ class MainWindow(QMainWindow):
             db_manager = DatabaseManager(db_path)
             self.db_tree.load_database(db_manager)
             self.db_managers[db_path] = db_manager
+
+        self.query_editor.populate_db_list(self.db_managers)
 
 
     def closeEvent(self, event):

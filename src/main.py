@@ -1,8 +1,10 @@
 from src.ui.main_window import MainWindow
 from PyQt6.QtWidgets import QApplication
+from platformdirs import user_data_dir
 from src import APP_NAME, APP_AUTHOR
 from PyQt6.QtCore import Qt
 from pathlib import Path
+import ribbitxdb
 import sys
 
 def main():
@@ -26,6 +28,31 @@ def main():
             app.setStyleSheet(f.read())
     except FileNotFoundError:
         pass
+
+    data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
+    try:
+        conn = ribbitxdb.connect(f'{data_dir}/viewer.rbx')
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS databases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                path TEXT UNIQUE
+            );
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                database TEXT,
+                execution_timestamp TEXT,
+                execution_time REAL,
+                query TEXT
+            );
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        raise RuntimeError(f'Could not connect to viewer database: {str(e)}')
 
     window = MainWindow()
     window.show()

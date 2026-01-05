@@ -32,7 +32,7 @@ class DatabaseTree(QTreeWidget):
         self.db_manager: Optional[DatabaseManager] = None
         self.setup_ui()
         self.setup_connections()
-        self.data_dir = user_data_dir(APP_NAME, APP_AUTHOR)
+        self.data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
 
     def setup_ui(self):
         """Initialise widget settings"""

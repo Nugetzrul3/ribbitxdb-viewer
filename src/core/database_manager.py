@@ -26,6 +26,7 @@ class DatabaseManager:
         for row in res:
             tables.append(row[0])
 
+        cursor.close()
         connection.close()
 
         return tables
@@ -46,6 +47,7 @@ class DatabaseManager:
         for row in res:
             views.append(row[0])
 
+        cursor.close()
         connection.close()
 
         return views
@@ -83,6 +85,7 @@ class DatabaseManager:
 
             schemas.append(schema)
 
+        cursor.close()
         connection.close()
 
         return schemas
@@ -108,6 +111,7 @@ class DatabaseManager:
             'created_at': res[1],
         }
 
+        cursor.close()
         connection.close()
 
         return schema
@@ -138,6 +142,7 @@ class DatabaseManager:
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
         rows = query.fetchall()
 
+        cursor.close()
         connection.close()
 
         return {
@@ -157,6 +162,7 @@ class DatabaseManager:
 
         cursor = connection.cursor()
         cursor.execute(f"DROP TABLE {table_name}")
+        cursor.close()
         connection.close()
 
     def delete_view(self, view_name: str):
@@ -167,6 +173,7 @@ class DatabaseManager:
 
         cursor = connection.cursor()
         cursor.execute(f"DROP VIEW {view_name}")
+        cursor.close()
         connection.close()
 
     def execute_query(self, sql: str, max_rows: int = 5000) -> Dict[str, Any]:
@@ -192,6 +199,7 @@ class DatabaseManager:
             if max_rows > 0:
                 rows = query.fetchmany(max_rows + 1)
                 has_more = len(rows) > 0
+                cursor.close()
                 connection.close()
 
                 return {
@@ -206,6 +214,7 @@ class DatabaseManager:
             # it could be an issue
             else:
                 rows = query.fetchall()
+                cursor.close()
                 connection.close()
                 return {
                     'columns': columns,
@@ -216,6 +225,8 @@ class DatabaseManager:
         else:
             # INSERT/UPDATE/DELETE query
             connection.commit()
+            cursor.close()
+            connection.close()
             return {
                 'columns': [],
                 'rows': [],

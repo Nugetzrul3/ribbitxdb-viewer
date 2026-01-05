@@ -62,6 +62,10 @@ class TableViewer(QWidget):
         self.table_view.setSortingEnabled(True)
         self.table_view.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
 
+        h_header = self.table_view.horizontalHeader()
+        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        h_header.setStretchLastSection(True)
+
         total_rows = data.get('total_rows', len(data.get('rows', [])))
         self.pagination.set_total_rows(total_rows)
 
