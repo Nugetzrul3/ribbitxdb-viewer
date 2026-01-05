@@ -1,10 +1,10 @@
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QToolBar,
     QPlainTextEdit, QVBoxLayout, QTabWidget, QTableView, QHeaderView, QComboBox
 )
 from ..models.history_table_model import HistoryTableModel
-from PyQt6.QtGui import QAction, QFont, QKeySequence
-from PyQt6.QtCore import Qt, pyqtSignal
+from PySide6.QtGui import QAction, QFont, QKeySequence
+from PySide6.QtCore import Qt, Signal
 from platformdirs import user_data_dir
 from .. import APP_NAME, APP_AUTHOR
 from ..core import DatabaseManager
@@ -14,7 +14,7 @@ import ribbitxdb
 
 
 class QueryEditor(QWidget):
-    query_executed = pyqtSignal()
+    query_executed = Signal()
 
     def __init__(self):
         super().__init__()

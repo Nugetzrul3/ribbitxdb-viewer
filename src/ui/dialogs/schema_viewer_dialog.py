@@ -1,13 +1,13 @@
 import json
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem,
     QHeaderView, QTextEdit, QLabel,
     QTabWidget, QPlainTextEdit, QMessageBox
 )
 from src.utils import parse_timestamp
 from typing import List, Dict, Any
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 
 
 class SchemaViewerDialog(QDialog):

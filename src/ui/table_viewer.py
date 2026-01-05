@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QTableView, QHeaderView, QMessageBox, QVBoxLayout, QWidget
-from PyQt6.QtCore import QSortFilterProxyModel, Qt
+from PySide6.QtWidgets import QTableView, QHeaderView, QMessageBox, QVBoxLayout, QWidget
+from PySide6.QtCore import QSortFilterProxyModel, Qt
 from .pagination_widget import PaginationWidget
 from ..core import DatabaseManager
 from ..models import DatabaseTableModel

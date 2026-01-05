@@ -1,8 +1,8 @@
 from src.ui.main_window import MainWindow
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 from platformdirs import user_data_dir
 from src import APP_NAME, APP_AUTHOR
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 from pathlib import Path
 import ribbitxdb
 import sys
@@ -21,7 +21,7 @@ def main():
     except Exception:
         base_path = Path(__file__).parent
 
-    qss_path = base_path / 'resources/theme.qss'
+    qss_path = base_path / 'resources' / 'theme.qss'
 
     try:
         with open(qss_path, 'r') as f:

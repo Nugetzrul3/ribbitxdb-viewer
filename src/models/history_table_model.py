@@ -1,5 +1,5 @@
-from PyQt6.QtCore import QAbstractTableModel, Qt, QModelIndex
-from PyQt6.QtGui import QColor
+from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
+from PySide6.QtGui import QColor
 from typing import Dict, Any
 
 

@@ -1,12 +1,12 @@
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
-    QSplitter, QToolBar, QMessageBox, QTabWidget, QLabel
+    QSplitter, QToolBar, QMessageBox
 )
-from PyQt6.QtGui import QAction, QKeySequence, QIcon, QActionGroup
+from PySide6.QtGui import QAction, QKeySequence, QIcon
 from .dialogs.about_dialog import AboutDialog
 from .database_tree import DatabaseTree
 from .dialogs import OpenDatabaseDialog
-from PyQt6.QtCore import Qt, QSettings
+from PySide6.QtCore import Qt, QSettings
 from platformdirs import user_data_dir
 from .query_editor import QueryEditor
 from .table_viewer import TableViewer

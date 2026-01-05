@@ -1,9 +1,9 @@
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QMenu, QMessageBox
 )
 from .dialogs.accept_action_dialog import AcceptActionDialog
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint
-from PyQt6.QtGui import QAction, QCursor
+from PySide6.QtCore import Qt, Signal, QPoint
+from PySide6.QtGui import QAction, QCursor
 from .dialogs import SchemaViewerDialog
 from .. import APP_NAME, APP_AUTHOR
 from platformdirs import user_data_dir
@@ -17,15 +17,15 @@ class DatabaseTree(QTreeWidget):
     """Widget to display database structure"""
 
     # Signals
-    table_selected = pyqtSignal(str, str)
-    view_selected = pyqtSignal(str, str)
-    database_disconnected = pyqtSignal(str)
-    database_refreshed = pyqtSignal(str)
-    query_copied = pyqtSignal(str, str)
-    views_refreshed = pyqtSignal(str)
-    view_deleted = pyqtSignal(str, str)
-    tables_refreshed = pyqtSignal(str)
-    table_deleted = pyqtSignal(str, str)
+    table_selected = Signal(str, str)
+    view_selected = Signal(str, str)
+    database_disconnected = Signal(str)
+    database_refreshed = Signal(str)
+    query_copied = Signal(str, str)
+    views_refreshed = Signal(str)
+    view_deleted = Signal(str, str)
+    tables_refreshed = Signal(str)
+    table_deleted = Signal(str, str)
 
     def __init__(self):
         super().__init__()

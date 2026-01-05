@@ -1,14 +1,14 @@
-from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtGui import QIntValidator
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit
+from PySide6.QtGui import QIntValidator
+from PySide6.QtCore import Signal, Qt
 
 
 class PaginationWidget(QWidget):
     """Pagination widget for table view"""
 
     # Signals
-    page_changed = pyqtSignal(int)
-    page_size_changed = pyqtSignal(int)
+    page_changed = Signal(int)
+    page_size_changed = Signal(int)
 
     def __init__(self):
         super().__init__()
