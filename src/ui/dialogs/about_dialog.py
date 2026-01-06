@@ -1,11 +1,11 @@
-import sys
-from pathlib import Path
-
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QTabWidget,
-    QTextBrowser, QListWidget, QPlainTextEdit, QSplitter, QListWidgetItem, QWidget
+    QTextBrowser, QListWidget, QPlainTextEdit,
+    QSplitter, QListWidgetItem, QWidget
 )
 from PySide6.QtCore import Qt
+from pathlib import Path
+import sys
 
 
 class AboutDialog(QDialog):

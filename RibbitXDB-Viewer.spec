@@ -11,10 +11,7 @@ a = Analysis(
         ('src/resources', 'resources'),
     ],
     hiddenimports=[
-        'ribbitxdb',
-        'PyQt6.QtCore',
-        'PyQt6.QtGui',
-        'PyQt6.QtWidgets',
+        'ribbitxdb'
     ],
     hookspath=[],
     hooksconfig={},

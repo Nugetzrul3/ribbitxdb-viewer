@@ -61,8 +61,8 @@ class OpenDatabaseDialog(QDialog):
         filepath, _ = QFileDialog.getOpenFileName(
             self,
             "Open Database File",
-            str(Path.home()),
-            "Database Files (*.rbx);;All Files (*.*)"
+            "",
+            "Database Files (*.rbx);;All Files (*.*)",
         )
 
         if filepath:

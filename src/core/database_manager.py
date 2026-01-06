@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import ribbitxdb
+import time
 
 
 class DatabaseManager:
@@ -190,7 +191,15 @@ class DatabaseManager:
             raise RuntimeError(f"Failed to connect to {self.db_path}")
 
         cursor = connection.cursor()
+        start_time = time.time()
         query = cursor.execute(sql)
+        end_time = time.time()
+        execution_time = (end_time - start_time) * 1000
+
+        time_data = {
+            'execution_time': execution_time,
+            'execution_timestamp': start_time
+        }
 
         if query.description:
             # This is a SELECT query
@@ -208,6 +217,7 @@ class DatabaseManager:
                     'total_rows': len(rows),
                     'truncated': has_more,
                     'max_rows': max_rows,
+                    **time_data
                 }
             # For this case, we could allow the user to do a fetch all
             # for big tables however, since the rows are loaded into memory
@@ -221,16 +231,19 @@ class DatabaseManager:
                     'rows': rows,
                     'total_rows': len(rows),
                     'truncated': False,
+                    **time_data
                 }
         else:
             # INSERT/UPDATE/DELETE query
+            row_count = query.rowcount
             connection.commit()
             cursor.close()
             connection.close()
             return {
                 'columns': [],
                 'rows': [],
-                'rows_affected': query.rowcount,
+                'rows_affected': row_count,
                 'total_rows': 0,
-                'truncated': False
+                'truncated': False,
+                **time_data
             }

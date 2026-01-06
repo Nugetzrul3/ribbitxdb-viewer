@@ -1,7 +1,9 @@
 from PySide6.QtWidgets import (
     QWidget, QToolBar,
-    QPlainTextEdit, QVBoxLayout, QTabWidget, QTableView, QHeaderView, QComboBox
+    QPlainTextEdit, QVBoxLayout, QTabWidget, QTableView, QHeaderView, QComboBox, QSplitter, QMessageBox, QLabel,
+    QFileDialog
 )
+from .query_table_viewer import QueryResultViewer
 from ..models.history_table_model import HistoryTableModel
 from PySide6.QtGui import QAction, QFont, QKeySequence
 from PySide6.QtCore import Qt, Signal
@@ -9,18 +11,27 @@ from platformdirs import user_data_dir
 from .. import APP_NAME, APP_AUTHOR
 from ..core import DatabaseManager
 from typing import Optional, Dict
+from datetime import datetime
 import ribbitxdb
 
-
-
 class QueryEditor(QWidget):
-    query_executed = Signal()
+    ok_style = """
+        color: #02a661;
+        padding: 5px;
+        border: 1px solid #00FF94
+    """
+    error_style = """
+        color: #db0235;
+        padding: 5px;
+        border: 1px solid #f7003a
+    """
 
     def __init__(self):
         super().__init__()
         self.current_db_manager: Optional[DatabaseManager] = None
         self.main_layout = QVBoxLayout(self)
         self.tab_widget = QTabWidget()
+        self.query_result_viewer = QueryResultViewer()
         self.data_model = HistoryTableModel()
         self.data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
         self.setup_ui()
@@ -32,9 +43,15 @@ class QueryEditor(QWidget):
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
 
         self._create_toolbar()
-        self.main_layout.addWidget(self.tab_widget)
         self._create_editor()
         self._create_history_table()
+
+        self.v_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.v_splitter.setWindowTitle('Query Editor')
+        self.v_splitter.setChildrenCollapsible(False)
+        self.v_splitter.addWidget(self.tab_widget)
+        self.v_splitter.addWidget(self.query_result_viewer)
+        self.main_layout.addWidget(self.v_splitter)
 
     def on_tab_changed(self, index: int):
         current_tab = self.tab_widget.tabText(index)
@@ -45,9 +62,10 @@ class QueryEditor(QWidget):
                 connection = ribbitxdb.connect(f'{self.data_dir}/viewer.rbx')
 
                 cursor = connection.cursor()
-                query = cursor.execute('SELECT database, execution_timestamp, execution_time, query FROM history')
+                query = cursor.execute('SELECT database, execution_timestamp, execution_time, query, id FROM history ORDER BY id DESC')
                 rows = query.fetchall()
                 columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                columns.pop()
                 cursor.close()
                 connection.close()
 
@@ -66,18 +84,27 @@ class QueryEditor(QWidget):
             self.db_list_cmb.addItem('Empty list')
             return
 
-        for db_path in db_dict:
+        for idx, db_path in enumerate(db_dict):
             db_name = db_dict[db_path].db_name
             self.db_list_cmb.addItem(db_name, {
                 'db_manager': db_dict[db_path],
+                'db_path': db_path
             })
+            self.db_list_cmb.setItemData(idx, db_path, Qt.ItemDataRole.ToolTipRole)
 
     def add_db(self, db_manager: DatabaseManager):
+        # since empty list won't have any data, we can pop it from the
+        # combo box
+        first_item_data = self.db_list_cmb.itemData(0, Qt.ItemDataRole.UserRole)
+        if not first_item_data:
+            self.db_list_cmb.removeItem(0)
+
         db_name = db_manager.db_name
         self.db_list_cmb.addItem(db_name, {
             'db_manager': db_manager,
             'db_path': db_manager.db_path,
         })
+        self.db_list_cmb.setItemData(self.db_list_cmb.count() - 1, db_manager.db_path, Qt.ItemDataRole.ToolTipRole)
 
     def remove_db(self, db_path: str):
         for i in range(self.db_list_cmb.count()):
@@ -86,6 +113,9 @@ class QueryEditor(QWidget):
             if data_db_path == db_path:
                 self.db_list_cmb.removeItem(i)
                 break
+
+        if self.db_list_cmb.count() == 0:
+            self.db_list_cmb.addItem('Empty list')
 
     def change_db(self, index):
         if index < 0:
@@ -101,17 +131,57 @@ class QueryEditor(QWidget):
 
     def execute_query(self):
         try:
+            data = self.current_db_manager.execute_query(self.sql_input.toPlainText())
+            self.query_result_viewer.display_results(data)
+
+            execution_time = data.get('execution_time', 0)
+            execution_timestamp = data.get('execution_timestamp', 0)
+
             connection = ribbitxdb.connect(f'{self.data_dir}/viewer.rbx')
             cursor = connection.cursor()
-            cursor.execute("""
-                INSERT INTO history (database, query) VALUES (?, ?)
-            """, (self.current_db_manager.db_name, self.editor.toPlainText()))
+
+            cursor.execute(
+                "INSERT INTO history (database, query, execution_time, execution_timestamp) VALUES (?, ?, ?, ?)",
+               (
+                   self.current_db_manager.db_name,
+                   self.sql_input.toPlainText().strip(),
+                   execution_time,
+                   datetime.fromtimestamp(execution_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+               )
+            )
             cursor.close()
             connection.commit()
             connection.close()
-        except Exception as e:
-            raise RuntimeError(f"Failed to execute query: {str(e)}")
 
+            rows_affected = data.get('rows_affected', 0)
+            if rows_affected > 0:
+                self._show_okay_status(f"Query executed successfully in {execution_time:.3f} seconds. {rows_affected} rows affected.")
+            else:
+                self._show_okay_status(f"Query executed successfully in {execution_time:.3f} seconds.")
+        except Exception as e:
+            print(f"Failed to execute query: {str(e)}")
+            self._show_error_status("Failed to execute query: " + str(e))
+
+    def save_sql(self):
+        if self.sql_input.toPlainText().strip() == '':
+            return
+
+        file_name, _ = QFileDialog.getSaveFileName(self, 'Save Query', "", "SQL files (*.sql);;All Files (*.*)")
+        if file_name:
+            f = open(file_name, 'w')
+            text = self.sql_input.toPlainText().strip()
+            f.write(text)
+            f.close()
+            QMessageBox.information(self, f'SQL saved', f'SQL saved to {file_name}')
+
+    def load_sql(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open SQL File", "", f"SQL files (*.sql);;All Files (*.*)")
+        if file_name:
+            f = open(file_name, 'r')
+            text = f.read()
+            f.close()
+            self.sql_input.setPlainText(text)
+            self._show_okay_status(f"Query loaded from {file_name}")
 
     def _create_toolbar(self):
         toolbar = QToolBar()
@@ -139,11 +209,13 @@ class QueryEditor(QWidget):
         save_action_sequence = QKeySequence(QKeySequence.StandardKey.Save)
         save_action.setShortcut(save_action_sequence)
         save_action.setToolTip(f"Save ({save_action_sequence.toString()})")
+        save_action.triggered.connect(self.save_sql)
         actions.append(save_action)
 
         load_action = QAction("Load", self)
         load_action.setShortcut(QKeySequence("Ctrl+L"))
         load_action.setToolTip(f"Load (Ctrl+L)")
+        load_action.triggered.connect(self.load_sql)
         actions.append(load_action)
 
         toolbar.addActions(actions)
@@ -151,11 +223,23 @@ class QueryEditor(QWidget):
         self.main_layout.addWidget(toolbar)
 
     def _create_editor(self):
-        self.editor = QPlainTextEdit()
+        self.editor = QWidget()
+        layout = QVBoxLayout(self.editor)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.sql_input = QPlainTextEdit()
         sql_font = QFont()
         sql_font.setFamily("Consolas")
         sql_font.setPointSize(15)
-        self.editor.setFont(sql_font)
+        self.sql_input .setFont(sql_font)
+
+        self.status_label = QLabel()
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self._show_okay_status("Ready")
+
+        layout.addWidget(self.sql_input )
+        layout.addWidget(self.status_label)
         self.tab_widget.addTab(self.editor, "Query")
 
     def _create_history_table(self):
@@ -170,3 +254,11 @@ class QueryEditor(QWidget):
         v_header.setVisible(True)
 
         self.tab_widget.addTab(self.history_table, "History")
+
+    def _show_okay_status(self, message):
+        self.status_label.setStyleSheet(self.ok_style)
+        self.status_label.setText(message)
+
+    def _show_error_status(self, message):
+        self.status_label.setStyleSheet(self.error_style)
+        self.status_label.setText(message)

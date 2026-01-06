@@ -36,7 +36,6 @@ def main():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS databases (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
                 path TEXT UNIQUE
             );
         """)

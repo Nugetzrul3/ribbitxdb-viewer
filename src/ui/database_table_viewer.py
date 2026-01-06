@@ -1,12 +1,12 @@
-from PySide6.QtWidgets import QTableView, QHeaderView, QMessageBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QTableView, QHeaderView, QMessageBox, QVBoxLayout, QWidget, QLabel, QStackedWidget
 from PySide6.QtCore import QSortFilterProxyModel, Qt
 from .pagination_widget import PaginationWidget
-from ..core import DatabaseManager
 from ..models import DatabaseTableModel
 from typing import Dict, Any, Optional
+from ..core import DatabaseManager
 
 
-class TableViewer(QWidget):
+class DatabaseTableViewer(QWidget):
     """Widget to display table data"""
 
     def __init__(self):
@@ -23,18 +23,25 @@ class TableViewer(QWidget):
 
     def setup_ui(self):
         """Create UI with table and pagination"""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
 
         self.setup_table_view()
-        layout.addWidget(self.table_view)
+        self.stacked_widget = QStackedWidget()
+        self.stacked_widget.addWidget(self.table_view)
 
-        # Pagination
+        self.empty_view_label = QLabel("No Data")
+        self.empty_view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.stacked_widget.addWidget(self.empty_view_label)
+
+        self.stacked_widget.setCurrentIndex(0)
+        self.main_layout.addWidget(self.stacked_widget)
+
         self.pagination = PaginationWidget()
         self.pagination.page_changed.connect(self.on_page_changed)
         self.pagination.page_size_changed.connect(self.on_page_size_changed)
-        layout.addWidget(self.pagination)
+        self.main_layout.addWidget(self.pagination)
 
     def setup_table_view(self):
         """Initialise table settings"""
@@ -47,12 +54,16 @@ class TableViewer(QWidget):
         v_header = self.table_view.verticalHeader()
         v_header.setVisible(True)
 
-    def display_data(self, data: Dict[str, Any], db_manager: Optional[DatabaseManager] = None, table_name: Optional[str] = None):
+    def display_data(self, data: Dict[str, Any], db_manager: Optional[DatabaseManager] = None,
+                     table_name: Optional[str] = None):
         """Display query results"""
         if data.get('total_rows') == 0:
             self.clear_data()
-            QMessageBox.warning(self, 'No results', 'No results')
+            self.stacked_widget.setCurrentIndex(1)
             return
+
+        self.stacked_widget.setCurrentIndex(0)
+
         self.current_db_manager = db_manager
         self.current_table = table_name
 
@@ -102,6 +113,3 @@ class TableViewer(QWidget):
         self.pagination.reset()
         self.current_table = None
         self.current_db_manager = None
-
-
-

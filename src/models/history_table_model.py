@@ -53,7 +53,7 @@ class HistoryTableModel(QAbstractTableModel):
     def set_data(self, data: Dict[str, Any]):
         """Set row and column data"""
         self.beginResetModel()
-        self._columns = data.get("columns", [])
+        self._columns = ['Database', 'Execution Timestamp', 'Execution Time', 'Query']
         self._rows = data.get("rows", [])
         self.endResetModel()
 

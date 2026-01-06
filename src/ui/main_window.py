@@ -3,18 +3,21 @@ from PySide6.QtWidgets import (
     QSplitter, QToolBar, QMessageBox
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon
+from .database_table_viewer import DatabaseTableViewer
 from .dialogs.about_dialog import AboutDialog
+from PySide6.QtCore import Qt, QSettings
 from .database_tree import DatabaseTree
 from .dialogs import OpenDatabaseDialog
-from PySide6.QtCore import Qt, QSettings
 from platformdirs import user_data_dir
 from .query_editor import QueryEditor
-from .table_viewer import TableViewer
+from ribbitxdb import BatchOperations
+
+from .query_table_viewer import QueryResultViewer
 from .. import APP_NAME, APP_AUTHOR
 from ..core import DatabaseManager
 from pathlib import Path
 from typing import Dict
-import csv
+import ribbitxdb
 import sys
 
 
@@ -22,6 +25,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.db_managers: Dict[str, DatabaseManager] = {}
+        self.data_dir = Path(user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True))
 
         self.setWindowTitle("RibbitXDB Viewer")
         self.setGeometry(100, 100, 1400, 900)
@@ -74,12 +78,8 @@ class MainWindow(QMainWindow):
         self.v_splitter.setWindowTitle('Query Editor')
         self.v_splitter.setChildrenCollapsible(False)
 
-        self.db_table_viewer = TableViewer()
-        self.query_table_viewer = TableViewer()
+        self.db_table_viewer = DatabaseTableViewer()
         self.query_editor = QueryEditor()
-
-        self.v_splitter.addWidget(self.query_editor)
-        self.v_splitter.addWidget(self.query_table_viewer)
 
         self.h_splitter.addWidget(self.db_tree)
         self.h_splitter.addWidget(self.db_table_viewer)
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
     def open_query_editor(self):
         """Hide database viewer and open query editor"""
         if self.h_splitter.widget(1).windowTitle() != "Query Editor":
-            self.h_splitter.replaceWidget(1, self.v_splitter)
+            self.h_splitter.replaceWidget(1, self.query_editor)
 
     def open_database(self):
         """Open database dialog"""
@@ -215,6 +215,10 @@ class MainWindow(QMainWindow):
             # Get and close the specific database manager
             if db_path in self.db_managers:
                 self.query_editor.remove_db(db_path)
+                with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
+                    cursor = connection.cursor()
+                    cursor.execute(f"DELETE FROM databases WHERE path = ?", (db_path,))
+                    cursor.close()
                 del self.db_managers[db_path]
 
             self.db_table_viewer.clear_data()
@@ -248,15 +252,18 @@ class MainWindow(QMainWindow):
 
     def _load_dbs(self):
         """Load databases saved in csv"""
-        data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
-        data_dir_path = Path(data_dir)
         db_list = []
 
-        if Path(data_dir_path / "databases.csv").exists():
-            with open(data_dir_path / "databases.csv", 'r', newline="") as csvfile:
-                reader = csv.reader(csvfile)
-                for row in reader:
-                    db_list.append(row[0])
+        if (self.data_dir / 'viewer.rbx').exists():
+            with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
+                cursor = connection.cursor()
+                query = cursor.execute("SELECT path FROM databases ORDER BY id DESC")
+                for row in query.fetchall():
+                    db_path = row[0]
+                    db_list.append(db_path)
+
+                cursor.close()
+
 
         # I have plans to make it so that we don't load all the dbs immediately, but for now
         # I will keep it this way
@@ -270,13 +277,12 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """On window close, save open dbs to datadir file"""
-        data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
-        data_dir_path = Path(data_dir)
         db_list = [x for x in self.db_managers.keys()]
 
-        with open(data_dir_path / 'databases.csv', 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerows([path] for path in db_list)
+        with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
+            batch_ops = BatchOperations(connection)
+            rows = [{'path': x} for x in db_list]
+            batch_ops.bulk_upsert('databases', rows, ['path'])
 
 
     def _restore_settings(self):
