@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (
-    QTreeWidget, QTreeWidgetItem, QMenu, QMessageBox
+    QTreeWidget, QTreeWidgetItem, QMenu,
+    QMessageBox, QApplication
 )
 from .dialogs.accept_action_dialog import AcceptActionDialog
 from PySide6.QtCore import Qt, Signal, QPoint
@@ -335,18 +336,18 @@ class DatabaseTree(QTreeWidget):
     @classmethod
     def copy_to_clipboard(cls, text: str):
         """Copy text to clipboard"""
-        from PyQt6.QtWidgets import QApplication
         clipboard = QApplication.clipboard()
         clipboard.setText(text)
 
     def generate_select_query(self, table_name: str, db_manager: DatabaseManager):
         """Generate and copy SELECT query to clipboard"""
-        query = "SELECT \n"
+        query = "SELECT\n"
         schema = db_manager.get_table_schema(table_name)
         columns = [x.get('column_name') for x in schema]
         for idx, column in enumerate(columns):
             query += f"\t{column}" + (",\n" if idx < len(columns) - 1 else "\n")
-        query += "WHERE \n"
+        query += f"FROM {table_name}\n"
+        query += "WHERE\n"
         for idx, column in enumerate(columns):
             query += f"\t{column} = '{column}'" + (" AND\n" if idx < len(columns) - 1 else ";")
 

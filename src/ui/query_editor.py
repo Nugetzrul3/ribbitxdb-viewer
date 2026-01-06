@@ -159,8 +159,8 @@ class QueryEditor(QWidget):
             else:
                 self._show_okay_status(f"Query executed successfully in {execution_time:.3f} seconds.")
         except Exception as e:
-            print(f"Failed to execute query: {str(e)}")
             self._show_error_status("Failed to execute query: " + str(e))
+            self.query_result_viewer.clear_results()
 
     def save_sql(self):
         if self.sql_input.toPlainText().strip() == '':
