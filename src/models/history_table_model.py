@@ -37,10 +37,15 @@ class HistoryTableModel(QAbstractTableModel):
         value = self._rows[row][column]
 
         if role == Qt.ItemDataRole.DisplayRole:
+            if isinstance(value, float):
+                return f"{value:.4f}"
             return str(value)
         elif role == Qt.ItemDataRole.ForegroundRole:
             if value is None:
                 return QColor("#6B7280")
+        elif role == Qt.ItemDataRole.TextAlignmentRole:
+            if isinstance(value, (int, float)):
+                return Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 
         return None
 
@@ -53,7 +58,7 @@ class HistoryTableModel(QAbstractTableModel):
     def set_data(self, data: Dict[str, Any]):
         """Set row and column data"""
         self.beginResetModel()
-        self._columns = ['Database', 'Execution Timestamp', 'Execution Time', 'Query']
+        self._columns = ['Database', 'Execution Timestamp', 'Execution Time (s)', 'Query']
         self._rows = data.get("rows", [])
         self.endResetModel()
 

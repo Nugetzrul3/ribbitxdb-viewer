@@ -1,12 +1,12 @@
 from PySide6.QtWidgets import (
     QWidget, QToolBar,
     QPlainTextEdit, QVBoxLayout, QTabWidget, QTableView, QHeaderView, QComboBox, QSplitter, QMessageBox, QLabel,
-    QFileDialog
+    QFileDialog, QMenu, QApplication
 )
 from .query_table_viewer import QueryResultViewer
 from ..models.history_table_model import HistoryTableModel
 from PySide6.QtGui import QAction, QFont, QKeySequence
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QPoint
 from platformdirs import user_data_dir
 from .. import APP_NAME, APP_AUTHOR
 from ..core import DatabaseManager
@@ -69,10 +69,22 @@ class QueryEditor(QWidget):
                 cursor.close()
                 connection.close()
 
+                h_header = self.history_table.horizontalHeader()
+                h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+                self.history_table.setSortingEnabled(False)
+
                 self.data_model.set_data({
                     'rows': rows,
                     'columns': columns
                 })
+
+                self.history_table.setSortingEnabled(True)
+                self.history_table.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
+
+                h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+                h_header.setStretchLastSection(True)
+
             except Exception as e:
                 raise RuntimeError(f"Failed to fetch data: {str(e)}")
 
@@ -183,6 +195,29 @@ class QueryEditor(QWidget):
             self.sql_input.setPlainText(text)
             self._show_okay_status(f"Query loaded from {file_name}")
 
+    def on_column_right_click(self, position: QPoint):
+        index = self.history_table.indexAt(position)
+        if not index.isValid():
+            return
+
+        if index.column() != 3:
+            return
+
+        value = index.data(Qt.ItemDataRole.DisplayRole)
+
+        menu = QMenu(self.history_table)
+        copy_action = menu.addAction("Copy")
+        menu.addSeparator()
+        load_into_editor = menu.addAction("Load query into editor")
+
+        action = menu.exec(self.history_table.viewport().mapToGlobal(position))
+        if action == copy_action:
+            QApplication.clipboard().setText(str(value))
+        elif action == load_into_editor:
+            self.sql_input.setPlainText(str(value))
+            self.tab_widget.setCurrentIndex(0)
+
+
     def _create_toolbar(self):
         toolbar = QToolBar()
 
@@ -247,11 +282,8 @@ class QueryEditor(QWidget):
         self.history_table.setModel(self.data_model)
         self.history_table.setAlternatingRowColors(True)
 
-        h_header = self.history_table.horizontalHeader()
-        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-
-        v_header = self.history_table.verticalHeader()
-        v_header.setVisible(True)
+        self.history_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.history_table.customContextMenuRequested.connect(self.on_column_right_click)
 
         self.tab_widget.addTab(self.history_table, "History")
 
