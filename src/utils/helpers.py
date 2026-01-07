@@ -1,4 +1,7 @@
 from datetime import datetime
+from typing import Any
+
+
 def trim_string(text):
     return text[:50] + "..." if len(text) > 50 else text
 
@@ -19,3 +22,11 @@ def try_convert_int(value):
         return True
     except ValueError:
         return False
+
+def get_dummy_data(col_type: str, column: str) -> Any:
+    if col_type == 'INTEGER':
+        return 0
+    if col_type == 'REAL':
+        return 0.0
+    return f'\"{column}\"'
+    # How to determine boolean?

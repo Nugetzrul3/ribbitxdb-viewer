@@ -8,8 +8,9 @@ from .dialogs.accept_action_dialog import AcceptActionDialog
 from .query_table_viewer import QueryResultViewer
 from ..models.history_table_model import HistoryTableModel
 from PySide6.QtGui import QAction, QFont, QKeySequence
-from PySide6.QtCore import Qt, Signal, QPoint
+from ..utils.sql_highlighter import SQLHighlighter
 from platformdirs import user_data_dir
+from PySide6.QtCore import Qt, QPoint
 from .. import APP_NAME, APP_AUTHOR
 from ..core import DatabaseManager
 from typing import Optional, Dict
@@ -294,6 +295,9 @@ class QueryEditor(QWidget):
         layout.setSpacing(0)
 
         self.sql_input = QPlainTextEdit()
+
+        SQLHighlighter(self.sql_input.document())
+
         sql_font = QFont()
         sql_font.setFamily("Consolas")
         sql_font.setPointSize(15)

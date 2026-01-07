@@ -3,13 +3,13 @@ from PySide6.QtWidgets import (
     QMessageBox, QApplication
 )
 from .dialogs.accept_action_dialog import AcceptActionDialog
+from ..utils import trim_string, get_dummy_data
 from PySide6.QtCore import Qt, Signal, QPoint
 from PySide6.QtGui import QAction, QCursor
 from .dialogs import SchemaViewerDialog
 from .. import APP_NAME, APP_AUTHOR
 from platformdirs import user_data_dir
 from ..core import DatabaseManager
-from ..utils import trim_string
 from typing import Optional
 from pathlib import Path
 
@@ -343,13 +343,13 @@ class DatabaseTree(QTreeWidget):
         """Generate and copy SELECT query to clipboard"""
         query = "SELECT\n"
         schema = db_manager.get_table_schema(table_name)
-        columns = [x.get('column_name') for x in schema]
-        for idx, column in enumerate(columns):
+        columns = [(x.get('column_name'), x.get('column_type')) for x in schema]
+        for idx, (column, _) in enumerate(columns):
             query += f"\t{column}" + (",\n" if idx < len(columns) - 1 else "\n")
         query += f"FROM {table_name}\n"
         query += "WHERE\n"
-        for idx, column in enumerate(columns):
-            query += f"\t{column} = '{column}'" + (" AND\n" if idx < len(columns) - 1 else ";")
+        for idx, (column, col_type) in enumerate(columns):
+            query += f"\t{column} = {get_dummy_data(col_type, column)}" + (" AND\n" if idx < len(columns) - 1 else ";")
 
         self.copy_to_clipboard(query)
         self.query_copied.emit(table_name, "SELECT")
@@ -357,28 +357,30 @@ class DatabaseTree(QTreeWidget):
     def generate_insert_query(self, table_name: str, db_manager: DatabaseManager):
         """Generate and copy INSERT query to clipboard"""
         schema = db_manager.get_table_schema(table_name)
-        columns = [x.get('column_name') for x in schema]
-        columns_seperated = ", ".join(columns)
-        columns_stringified = [f"'{x}'" for x in columns]
-        columns_stringified_seperated = ", ".join(columns_stringified)
-        query = (f"INSERT INTO {table_name}"
-                 f"\n\t({columns_seperated})"
-                 f"\nVALUES \n\t({columns_stringified_seperated});")
+        columns = [(x.get('column_name'), x.get('column_type')) for x in schema]
+        query = f"INSERT INTO {table_name} ("
+        for idx, (column, _) in enumerate(columns):
+            query += f"\n\t{column}" + ("," if idx < len(columns) - 1 else "\n)")
+
+        query += " VALUES (\n"
+        for idx, (column, col_type) in enumerate(columns):
+            query += f"\n\t{get_dummy_data(col_type, column)}" + ("," if idx < len(columns) - 1 else "\n);")
+
         self.copy_to_clipboard(query)
         self.query_copied.emit(table_name, "INSERT")
 
     def generate_update_query(self, table_name: str, db_manager: DatabaseManager):
         """Generate and copy UPDATE query to clipboard"""
         schema = db_manager.get_table_schema(table_name)
-        columns = [x.get('column_name') for x in schema]
+        columns = [(x.get('column_name'), x.get('column_type')) for x in schema]
         query = f"UPDATE {table_name} SET\n"
-        for idx, column in enumerate(columns):
-            query += f"\t{column} = '{column}'" + (",\n" if idx < len(columns) - 1 else "\n")
+        for idx, (column, col_type) in enumerate(columns):
+            query += f"\t{column} = {get_dummy_data(col_type, column)}" + (",\n" if idx < len(columns) - 1 else "\n")
 
         query += "WHERE\n"
 
-        for idx, column in enumerate(columns):
-            query += f"\t{column} = '{column}'" + (" AND\n" if idx < len(columns) - 1 else "\n;")
+        for idx, (column, col_type) in enumerate(columns):
+            query += f"\t{column} = {get_dummy_data(col_type, column)}" + (" AND\n" if idx < len(columns) - 1 else ";")
 
         self.copy_to_clipboard(query)
         self.query_copied.emit(table_name, "UPDATE")
@@ -386,10 +388,10 @@ class DatabaseTree(QTreeWidget):
     def generate_delete_query(self, table_name: str, db_manager: DatabaseManager):
         """Generate and copy DELETE query to clipboard"""
         schema = db_manager.get_table_schema(table_name)
-        columns = [x.get('column_name') for x in schema]
+        columns = [(x.get('column_name'), x.get('column_type')) for x in schema]
         query = f"DELETE FROM {table_name} WHERE\n"
-        for idx, column in enumerate(columns):
-            query += f"\t{column} = '{column}'" + (" AND\n" if idx < len(columns) - 1 else ";")
+        for idx, (column, col_type) in enumerate(columns):
+            query += f"\t{column} = {get_dummy_data(col_type, column)}" + (" AND\n" if idx < len(columns) - 1 else ";")
 
         self.copy_to_clipboard(query)
         self.query_copied.emit(table_name, "DELETE")
