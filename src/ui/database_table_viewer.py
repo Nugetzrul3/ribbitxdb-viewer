@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import QTableView, QHeaderView, QMessageBox, QVBoxLayout, QWidget, QLabel, QStackedWidget
+from ..models.database_table_model import DatabaseTableModel
 from PySide6.QtCore import QSortFilterProxyModel, Qt
+from ..core.database_manager import DatabaseManager
 from .pagination_widget import PaginationWidget
-from ..models import DatabaseTableModel
 from typing import Dict, Any, Optional
-from ..core import DatabaseManager
 
 
 class DatabaseTableViewer(QWidget):

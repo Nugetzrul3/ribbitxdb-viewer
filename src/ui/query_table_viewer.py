@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QTableView, QHeaderView, QVBoxLayout, QWidget, QMessageBox
+from ..models.database_table_model import DatabaseTableModel
 from PySide6.QtCore import QSortFilterProxyModel, Qt
 from .pagination_widget import PaginationWidget
-from ..models import DatabaseTableModel
 from typing import Dict, Any, List
 
 

@@ -4,17 +4,15 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon
 from .database_table_viewer import DatabaseTableViewer
+from .dialogs.open_db_dialog import OpenDatabaseDialog
+from ..core.database_manager import DatabaseManager
 from .dialogs.about_dialog import AboutDialog
 from PySide6.QtCore import Qt, QSettings
 from .database_tree import DatabaseTree
-from .dialogs import OpenDatabaseDialog
 from platformdirs import user_data_dir
 from .query_editor import QueryEditor
 from ribbitxdb import BatchOperations
-
-from .query_table_viewer import QueryResultViewer
 from .. import APP_NAME, APP_AUTHOR
-from ..core import DatabaseManager
 from pathlib import Path
 from typing import Dict
 import ribbitxdb

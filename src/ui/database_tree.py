@@ -3,13 +3,13 @@ from PySide6.QtWidgets import (
     QMessageBox, QApplication
 )
 from .dialogs.accept_action_dialog import AcceptActionDialog
+from .dialogs.schema_viewer_dialog import SchemaViewerDialog
+from ..core.database_manager import DatabaseManager
 from ..utils import trim_string, get_dummy_data
 from PySide6.QtCore import Qt, Signal, QPoint
 from PySide6.QtGui import QAction, QCursor
-from .dialogs import SchemaViewerDialog
 from .. import APP_NAME, APP_AUTHOR
 from platformdirs import user_data_dir
-from ..core import DatabaseManager
 from typing import Optional
 from pathlib import Path
 

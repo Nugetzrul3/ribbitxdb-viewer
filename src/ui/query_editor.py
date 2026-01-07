@@ -8,11 +8,11 @@ from .dialogs.accept_action_dialog import AcceptActionDialog
 from .query_table_viewer import QueryResultViewer
 from ..models.history_table_model import HistoryTableModel
 from PySide6.QtGui import QAction, QFont, QKeySequence
+from ..core.database_manager import DatabaseManager
 from ..utils.sql_highlighter import SQLHighlighter
 from platformdirs import user_data_dir
 from PySide6.QtCore import Qt, QPoint
 from .. import APP_NAME, APP_AUTHOR
-from ..core import DatabaseManager
 from typing import Optional, Dict
 from datetime import datetime
 import ribbitxdb
