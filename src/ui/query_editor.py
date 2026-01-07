@@ -163,7 +163,7 @@ class QueryEditor(QWidget):
             cursor = connection.cursor()
 
             cursor.execute(
-                "INSERT INTO history (database, query, row_count, execution_time, execution_timestamp) VALUES (?, ?, ?, ?)",
+                "INSERT INTO history (database, query, row_count, execution_time, execution_timestamp) VALUES (?, ?, ?, ?, ?)",
                (
                    self.current_db_manager.db_name,
                    sql.strip(),
