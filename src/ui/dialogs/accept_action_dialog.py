@@ -7,12 +7,12 @@ class AcceptActionDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.message = message
+        self.setMinimumSize(300, 100)
+        self.setMaximumSize(300, 100)
         self.setup_ui()
 
     def setup_ui(self):
         self.setModal(True)
-        self.setFixedWidth(300)
-        self.setFixedHeight(self.height())
         layout = QVBoxLayout(self)
 
         label = QLabel(self.message)
@@ -32,5 +32,7 @@ class AcceptActionDialog(QDialog):
 
         layout.addWidget(label)
         layout.addLayout(button_layout)
+
+        self.adjustSize()
 
 

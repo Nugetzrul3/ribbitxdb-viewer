@@ -194,7 +194,7 @@ class DatabaseManager:
         start_time = time.time()
         query = cursor.execute(sql)
         end_time = time.time()
-        execution_time = (end_time - start_time) * 1000
+        execution_time = end_time - start_time
 
         time_data = {
             'execution_time': execution_time,

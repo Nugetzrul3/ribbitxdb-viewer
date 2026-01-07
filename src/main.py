@@ -45,6 +45,7 @@ def main():
                 database TEXT,
                 execution_timestamp TEXT,
                 execution_time REAL,
+                row_count INTEGER,
                 query TEXT
             );
         """)

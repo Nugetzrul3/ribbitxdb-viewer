@@ -1,8 +1,10 @@
 from PySide6.QtWidgets import (
     QWidget, QToolBar,
     QPlainTextEdit, QVBoxLayout, QTabWidget, QTableView, QHeaderView, QComboBox, QSplitter, QMessageBox, QLabel,
-    QFileDialog, QMenu, QApplication
+    QFileDialog, QMenu, QApplication, QHBoxLayout, QPushButton
 )
+
+from .dialogs.accept_action_dialog import AcceptActionDialog
 from .query_table_viewer import QueryResultViewer
 from ..models.history_table_model import HistoryTableModel
 from PySide6.QtGui import QAction, QFont, QKeySequence
@@ -62,10 +64,13 @@ class QueryEditor(QWidget):
                 connection = ribbitxdb.connect(f'{self.data_dir}/viewer.rbx')
 
                 cursor = connection.cursor()
-                query = cursor.execute('SELECT database, execution_timestamp, execution_time, query, id FROM history ORDER BY id DESC')
+                query = cursor.execute('SELECT database, execution_timestamp, execution_time, row_count, query, id FROM history ORDER BY id DESC')
                 rows = query.fetchall()
                 columns = [desc[0] for desc in cursor.description] if cursor.description else []
-                columns.pop()
+
+                if len(rows) > 0:
+                    columns.pop()
+
                 cursor.close()
                 connection.close()
 
@@ -74,10 +79,7 @@ class QueryEditor(QWidget):
 
                 self.history_table.setSortingEnabled(False)
 
-                self.data_model.set_data({
-                    'rows': rows,
-                    'columns': columns
-                })
+                self.data_model.set_data(rows)
 
                 self.history_table.setSortingEnabled(True)
                 self.history_table.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
@@ -143,20 +145,28 @@ class QueryEditor(QWidget):
 
     def execute_query(self):
         try:
-            data = self.current_db_manager.execute_query(self.sql_input.toPlainText())
+            sql: str
+            if self.sql_input.textCursor().hasSelection():
+                sql = self.sql_input.textCursor().selectedText()
+            else:
+                sql = self.sql_input.toPlainText()
+
+            data = self.current_db_manager.execute_query(sql)
             self.query_result_viewer.display_results(data)
 
             execution_time = data.get('execution_time', 0)
             execution_timestamp = data.get('execution_timestamp', 0)
+            rows_affected = data.get('rows_affected', 0)
 
             connection = ribbitxdb.connect(f'{self.data_dir}/viewer.rbx')
             cursor = connection.cursor()
 
             cursor.execute(
-                "INSERT INTO history (database, query, execution_time, execution_timestamp) VALUES (?, ?, ?, ?)",
+                "INSERT INTO history (database, query, row_count, execution_time, execution_timestamp) VALUES (?, ?, ?, ?)",
                (
                    self.current_db_manager.db_name,
-                   self.sql_input.toPlainText().strip(),
+                   sql.strip(),
+                   rows_affected,
                    execution_time,
                    datetime.fromtimestamp(execution_timestamp).strftime('%Y-%m-%d %H:%M:%S')
                )
@@ -165,7 +175,6 @@ class QueryEditor(QWidget):
             connection.commit()
             connection.close()
 
-            rows_affected = data.get('rows_affected', 0)
             if rows_affected > 0:
                 self._show_okay_status(f"Query executed successfully in {execution_time:.3f} seconds. {rows_affected} rows affected.")
             else:
@@ -216,6 +225,27 @@ class QueryEditor(QWidget):
         elif action == load_into_editor:
             self.sql_input.setPlainText(str(value))
             self.tab_widget.setCurrentIndex(0)
+
+    def clear_history(self):
+        clear_history_dialog = AcceptActionDialog(
+            self,
+            "Clear history",
+            "Are you sure you want to clear the history?",
+        )
+
+        if clear_history_dialog.exec():
+            try:
+                connection = ribbitxdb.connect(f'{self.data_dir}/viewer.rbx')
+                cursor = connection.cursor()
+                cursor.execute('DELETE FROM history')
+                cursor.close()
+                connection.commit()
+                connection.close()
+
+                self.data_model.set_data([])
+
+            except Exception as e:
+                self._show_error_status("Failed to clear history: " + str(e))
 
 
     def _create_toolbar(self):
@@ -278,14 +308,27 @@ class QueryEditor(QWidget):
         self.tab_widget.addTab(self.editor, "Query")
 
     def _create_history_table(self):
+        history_widget = QWidget()
+        layout = QVBoxLayout(history_widget)
+        layout.setContentsMargins(0,0,0,0)
+
+        button_layout = QHBoxLayout()
+        button_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        reset_button = QPushButton("Clear history")
+        reset_button.clicked.connect(self.clear_history)
+        button_layout.addWidget(reset_button)
+
         self.history_table = QTableView()
         self.history_table.setModel(self.data_model)
         self.history_table.setAlternatingRowColors(True)
-
         self.history_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.history_table.customContextMenuRequested.connect(self.on_column_right_click)
+        self.history_table.setHorizontalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
+        self.history_table.setVerticalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
 
-        self.tab_widget.addTab(self.history_table, "History")
+        layout.addLayout(button_layout)
+        layout.addWidget(self.history_table)
+        self.tab_widget.addTab(history_widget, "History")
 
     def _show_okay_status(self, message):
         self.status_label.setStyleSheet(self.ok_style)

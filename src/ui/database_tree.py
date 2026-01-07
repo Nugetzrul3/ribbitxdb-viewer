@@ -530,20 +530,39 @@ class DatabaseTree(QTreeWidget):
                 col_name = col["column_name"]
                 col_type = col["column_type"]
                 col_info = f"{col_name}: ({col_type})"
+                tool_tip_info = []
 
                 if col["primary_key"]:
                     col_info += " 🔑"
+                    tool_tip_info.append('PK')
 
                 if col["not_null"]:
                     col_info += " 🚫"
+                    tool_tip_info.append("Not Null")
 
                 if col["unique_constraint"]:
                     col_info += " 🔒"
+                    tool_tip_info.append("Unq Constr")
 
                 if col["auto_increment"]:
                     col_info += " ⬆️"
+                    tool_tip_info.append("Auto Incr")
+
+                if col['foreign_key']:
+                    col_info += " 🔗"
+                    tool_tip_info.append("FK")
+
+                if col['check_expression']:
+                    col_info += " ✅"
+                    tool_tip_info.append("Chk Constr")
+
+                if col['default_value']:
+                    col_info += " 📌"
+                    tool_tip_info.append(f"Dflt val: {col['default_value']}")
 
                 column_item = QTreeWidgetItem(columns_category, [col_info])
+                if tool_tip_info:
+                    column_item.setToolTip(0, "\n".join(tool_tip_info))
                 column_item.setData(0, Qt.ItemDataRole.UserRole, {
                     'type': 'column',
                     'table': table_name,

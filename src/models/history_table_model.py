@@ -1,6 +1,6 @@
 from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
+from typing import Dict, Any, List
 from PySide6.QtGui import QColor
-from typing import Dict, Any
 
 
 class HistoryTableModel(QAbstractTableModel):
@@ -55,11 +55,11 @@ class HistoryTableModel(QAbstractTableModel):
     def rowCount(self, parent = QModelIndex()):
         return len(self._rows)
 
-    def set_data(self, data: Dict[str, Any]):
+    def set_data(self, rows: List[Any]):
         """Set row and column data"""
         self.beginResetModel()
-        self._columns = ['Database', 'Execution Timestamp', 'Execution Time (s)', 'Query']
-        self._rows = data.get("rows", [])
+        self._columns = ['Database', 'Execution Timestamp', 'Execution Time (s)', 'Rows Affected', 'Query']
+        self._rows = rows
         self.endResetModel()
 
     def flags(self, index: QModelIndex):

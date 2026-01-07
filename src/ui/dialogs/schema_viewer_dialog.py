@@ -5,7 +5,9 @@ from PySide6.QtWidgets import (
     QHeaderView, QTextEdit, QLabel,
     QTabWidget, QPlainTextEdit, QMessageBox
 )
-from src.utils import parse_timestamp
+from src.utils import (
+    parse_timestamp, try_convert_int, try_convert_float
+)
 from typing import List, Dict, Any
 from PySide6.QtCore import Qt
 
@@ -22,13 +24,13 @@ class SchemaViewerDialog(QDialog):
         layout = QVBoxLayout(self)
 
         table = QTableWidget()
-        table.itemDoubleClicked.connect(self.on_item_double_clicked)
+        table.itemClicked.connect(self.on_item_double_clicked)
         table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
         table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
-        table.setColumnCount(8)
+        table.setColumnCount(9)
         table.setRowCount(len(columns))
         table.setHorizontalHeaderLabels([
-            "Column", "Type", "Nullable", "Default", "PK", "AI", "UQ", "FK"
+            "Column", "Type", "Nullable", "Default", "Check", "PK", "AI", "UQ", "FK"
         ])
 
         for row_idx, col in enumerate(columns):
@@ -42,17 +44,20 @@ class SchemaViewerDialog(QDialog):
             default = str(col['default_value']) if col['default_value'] else ""
             table.setItem(row_idx, 3, QTableWidgetItem(default))
 
+            check_constraint = str(col['check_expression']) if col['check_expression'] else ""
+            table.setItem(row_idx, 4, QTableWidgetItem(check_constraint))
+
             pk_item = QTableWidgetItem("✓" if col['primary_key'] else "")
             pk_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            table.setItem(row_idx, 4, pk_item)
+            table.setItem(row_idx, 5, pk_item)
 
             ai_item = QTableWidgetItem("✓" if col.get('auto_increment', False) else "")
             ai_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            table.setItem(row_idx, 5, ai_item)
+            table.setItem(row_idx, 6, ai_item)
 
             uq_item = QTableWidgetItem("✓" if col.get('unique_constraint', False) else "")
             uq_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            table.setItem(row_idx, 6, uq_item)
+            table.setItem(row_idx, 7, uq_item)
 
             fk_item = QTableWidgetItem("✓" if col.get('foreign_key', False) else "")
             fk_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -62,8 +67,9 @@ class SchemaViewerDialog(QDialog):
                     "column": col['column_name'],
                     "fk_def": col['foreign_key']
                 })
+                fk_item.setToolTip('Click to see reference')
 
-            table.setItem(row_idx, 7, fk_item)
+            table.setItem(row_idx, 8, fk_item)
 
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -106,6 +112,7 @@ class SchemaViewerDialog(QDialog):
         datetime_label.setText(f"Created at: {parse_timestamp(data.get("created_at"))}")
         datetime_label.setWordWrap(True)
         layout.addWidget(datetime_label)
+        self.setMinimumWidth(600)
 
         self.exec()
 
@@ -114,7 +121,7 @@ class SchemaViewerDialog(QDialog):
         column_idx = item.column()
 
         # foreign key
-        if column_idx == 7:
+        if column_idx == 8:
             data = item.data(Qt.ItemDataRole.UserRole)
             if not data:
                 return
@@ -145,7 +152,11 @@ class SchemaViewerDialog(QDialog):
                 col_def += " UNIQUE"
 
             if col['default_value']:
-                col_def += f" DEFAULT {col['default_value']}"
+                if try_convert_float(col['default_value']) or \
+                    try_convert_int(col['default_value']):
+                    col_def += f" DEFAULT {col['default_value']}"
+                else:
+                    col_def += f" DEFAULT \"{col['default_value']}\""
 
             if col['check_expression']:
                 col_def += f" CHECK ({col['check_expression']})"
