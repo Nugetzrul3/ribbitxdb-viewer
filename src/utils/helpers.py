@@ -1,5 +1,9 @@
+from typing import Any, Union, List, Dict, Optional
+from platformdirs import user_data_dir
+from ribbitxdb import BatchOperations
+from src import APP_NAME, APP_AUTHOR
 from datetime import datetime
-from typing import Any
+import ribbitxdb
 
 
 def trim_string(text):
@@ -30,3 +34,54 @@ def get_dummy_data(col_type: str, column: str) -> Any:
         return 0.0
     return f'\"{column}\"'
     # How to determine boolean?
+
+def query_viewer_db(
+        query: Any,
+        params: Optional[tuple] = None,
+        table: Optional[str] = None,
+        key_cols: Optional[List[str]] = None
+):
+    try:
+        data_dir = user_data_dir(APP_NAME, APP_AUTHOR)
+        conn = ribbitxdb.connect(data_dir + "/viewer.rbx")
+        # regular query
+        if isinstance(query, str):
+            cursor = conn.cursor()
+            if params:
+                query = cursor.execute(query, params)
+            else:
+                query = cursor.execute(query)
+
+            if query.description:
+                columns = [desc[0] for desc in query.description]
+                rows = query.fetchall()
+
+                return {
+                    'columns': columns,
+                    'rows': rows,
+                }
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+        # bulk query
+        elif isinstance(query, list):
+            if table and key_cols:
+                batch_ops = BatchOperations(conn)
+                batch_ops.bulk_upsert(table, query, key_cols)
+                conn.close()
+                return
+
+            # multiple queries
+            cur = conn.cursor()
+            for q in query:
+                cur.execute(q)
+
+            conn.commit()
+            cur.close()
+            conn.close()
+        else:
+            raise ValueError
+    except Exception as e:
+        raise e
+

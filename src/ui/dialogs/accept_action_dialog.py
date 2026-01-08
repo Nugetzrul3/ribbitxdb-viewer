@@ -21,10 +21,10 @@ class AcceptActionDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        accept_button = QPushButton("Accept")
+        accept_button = QPushButton("Yss")
         accept_button.clicked.connect(self.accept)
 
-        cancel_button = QPushButton("Cancel")
+        cancel_button = QPushButton("No")
         cancel_button.clicked.connect(self.reject)
 
         button_layout.addWidget(cancel_button)

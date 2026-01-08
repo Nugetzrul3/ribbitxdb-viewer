@@ -51,7 +51,7 @@ class SQLHighlighter(QSyntaxHighlighter):
         number_format = QTextCharFormat()
         number_format.setForeground(QColor("#FFA500"))
         self.highlighting_rules.append((
-            QRegularExpression("\\b[0-9]+\\.?[0-9]*\\b"), number_format
+            QRegularExpression("(?<![\"'])\\b[0-9]+(?:\\.[0-9]+)?\\b(?![\"'])"), number_format
         ))
 
         comment_format = QTextCharFormat()

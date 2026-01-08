@@ -1,6 +1,6 @@
-from src.ui.main_window import MainWindow
 from PySide6.QtWidgets import QApplication
-from platformdirs import user_data_dir
+from src.ui.main_window import MainWindow
+from src.utils import query_viewer_db
 from src import APP_NAME, APP_AUTHOR
 from PySide6.QtCore import Qt
 from pathlib import Path
@@ -29,28 +29,27 @@ def main():
     except FileNotFoundError:
         pass
 
-    data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
     try:
-        conn = ribbitxdb.connect(f'{data_dir}/viewer.rbx')
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS databases (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                path TEXT UNIQUE
-            );
-        """)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                database TEXT,
-                execution_timestamp TEXT,
-                execution_time REAL,
-                row_count INTEGER,
-                query TEXT
-            );
-        """)
-        conn.commit()
-        conn.close()
+        queries = [
+            """
+                        CREATE TABLE IF NOT EXISTS databases (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            path TEXT UNIQUE
+                        );
+                    """,
+            """
+                    CREATE TABLE IF NOT EXISTS history (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            database TEXT,
+                            execution_timestamp TEXT,
+                            execution_time REAL,
+                            row_count INTEGER,
+                            query TEXT
+                        );
+                    """
+        ]
+
+        query_viewer_db(queries)
     except Exception as e:
         raise RuntimeError(f'Could not connect to viewer database: {str(e)}')
 

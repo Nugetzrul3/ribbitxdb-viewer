@@ -11,11 +11,10 @@ from PySide6.QtCore import Qt, QSettings
 from .database_tree import DatabaseTree
 from platformdirs import user_data_dir
 from .query_editor import QueryEditor
-from ribbitxdb import BatchOperations
 from .. import APP_NAME, APP_AUTHOR
+from ..utils import query_viewer_db
 from pathlib import Path
 from typing import Dict
-import ribbitxdb
 import sys
 
 
@@ -203,10 +202,7 @@ class MainWindow(QMainWindow):
             # Get and close the specific database manager
             if db_path in self.db_managers:
                 self.query_editor.remove_db(db_path)
-                with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
-                    cursor = connection.cursor()
-                    cursor.execute(f"DELETE FROM databases WHERE path = ?", (db_path,))
-                    cursor.close()
+                query_viewer_db('DELETE FROM databases WHERE path = ?', (db_path,))
                 del self.db_managers[db_path]
 
             self.db_table_viewer.clear_data()
@@ -243,14 +239,20 @@ class MainWindow(QMainWindow):
         db_list = []
 
         if (self.data_dir / 'viewer.rbx').exists():
-            with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
-                cursor = connection.cursor()
-                query = cursor.execute("SELECT path FROM databases ORDER BY id DESC")
-                for row in query.fetchall():
-                    db_path = row[0]
-                    db_list.append(db_path)
+            # with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
+            #     cursor = connection.cursor()
+            #     query = cursor.execute("SELECT path FROM databases ORDER BY id DESC")
+            #     for row in query.fetchall():
+            #         db_path = row[0]
+            #         db_list.append(db_path)
+            #
+            #     cursor.close()
+            query = query_viewer_db("SELECT path FROM databases ORDER BY id DESC")
+            rows = query.get('rows')
 
-                cursor.close()
+            for row in rows:
+                db_path = row[0]
+                db_list.append(db_path)
 
 
         # I have plans to make it so that we don't load all the dbs immediately, but for now
@@ -267,10 +269,13 @@ class MainWindow(QMainWindow):
         """On window close, save open dbs to datadir file"""
         db_list = [x for x in self.db_managers.keys()]
 
-        with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
-            batch_ops = BatchOperations(connection)
-            rows = [{'path': x} for x in db_list]
-            batch_ops.bulk_upsert('databases', rows, ['path'])
+        # with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
+        #     batch_ops = BatchOperations(connection)
+        #     rows = [{'path': x} for x in db_list]
+        #     batch_ops.bulk_upsert('databases', rows, ['path'])
+
+        rows = [{'path': x} for x in db_list]
+        query_viewer_db(rows, params=None, table='databases', key_cols=['path'])
 
 
     def _restore_settings(self):
