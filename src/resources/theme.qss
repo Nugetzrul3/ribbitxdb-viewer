@@ -97,6 +97,10 @@ QToolButton:pressed {
     background-color: #2A2A2C;
 }
 
+QToolButton:disabled {
+    color: #3B3B3D
+}
+
 /* Status Bar */
 QStatusBar {
     background-color: #0F0F10;

@@ -105,16 +105,6 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        # View menu
-        view_menu = menubar.addMenu("&View")
-
-        # Tools menu
-        tools_menu = menubar.addMenu("&Tools")
-
-        export_action = QAction("&Export Data...", self)
-        # export_action.triggered.connect(self.export_data)
-        tools_menu.addAction(export_action)
-
         help_menu = menubar.addMenu("&Help")
         about_action = QAction("&About...", self)
         about_action.triggered.connect(self.open_about_dialog)

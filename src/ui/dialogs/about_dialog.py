@@ -28,13 +28,11 @@ class AboutDialog(QDialog):
         about_description = """
                     <h2 style="color: #00FF94">About RibbitXDB Viewer</h2>
                     <h4>
-                    Licensed under the MIT license.
-                    <br>
                     Copyright (c) 2025 Nugetzrul3
                     </h4>
                     <p>
                     RibbitXDB Viewer is a simple database viewer designed and created to allow management of <a href="https://github.com/ribbitx/ribbitxdb">RibbitXDB</a> databases.
-                    It is free and open source, licensed under the MIT license. See License tab for more information.
+                    It is free and open source, licensed under the MIT license. RibbitXDB Viewer utilises other libraries to function. See License tab for more information.
                     <br>
                     <br>
                     Author and active maintainer: <a target="_blank" href="https://github.com/Nugetzrul3">Nugetzrul3</a>
@@ -77,7 +75,7 @@ class AboutDialog(QDialog):
         h_splitter.handle(1).setEnabled(False)
         license_layout.addWidget(h_splitter)
 
-        self.tab_widget.addTab(license_widget, "License")
+        self.tab_widget.addTab(license_widget, "Licenses")
 
     def on_license_changed(self, item: QListWidgetItem):
         path = item.data(Qt.ItemDataRole.UserRole)

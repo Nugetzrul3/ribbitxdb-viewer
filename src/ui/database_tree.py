@@ -362,7 +362,7 @@ class DatabaseTree(QTreeWidget):
         for idx, (column, _) in enumerate(columns):
             query += f"\n\t{column}" + ("," if idx < len(columns) - 1 else "\n)")
 
-        query += " VALUES (\n"
+        query += " VALUES ("
         for idx, (column, col_type) in enumerate(columns):
             query += f"\n\t{get_dummy_data(col_type, column)}" + ("," if idx < len(columns) - 1 else "\n);")
 

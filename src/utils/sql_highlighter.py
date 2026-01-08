@@ -29,7 +29,7 @@ class SQLHighlighter(QSyntaxHighlighter):
             "CURRENT_DATE", "CURRENT_TIME", "BOOLEAN", "INTO",
             "VALUES", "SET", "SHOW", "EXPLAIN", "DESCRIBE",
             "RELEASE", "SAVEPOINT", "ROLLBACK", "COMMIT", "BEGIN",
-            "PRAGMA"
+            "PRAGMA", "IF"
         ]
 
         for word in keywords:

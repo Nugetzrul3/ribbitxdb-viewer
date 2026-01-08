@@ -3,7 +3,6 @@ from PySide6.QtWidgets import (
     QPlainTextEdit, QVBoxLayout, QTabWidget, QTableView, QHeaderView, QComboBox, QSplitter, QMessageBox, QLabel,
     QFileDialog, QMenu, QApplication, QHBoxLayout, QPushButton
 )
-
 from .dialogs.accept_action_dialog import AcceptActionDialog
 from .query_table_viewer import QueryResultViewer
 from ..models.history_table_model import HistoryTableModel
@@ -16,6 +15,7 @@ from .. import APP_NAME, APP_AUTHOR
 from typing import Optional, Dict
 from datetime import datetime
 import ribbitxdb
+import csv
 
 class QueryEditor(QWidget):
     ok_style = """
@@ -49,12 +49,7 @@ class QueryEditor(QWidget):
         self._create_editor()
         self._create_history_table()
 
-        self.v_splitter = QSplitter(Qt.Orientation.Vertical)
-        self.v_splitter.setWindowTitle('Query Editor')
-        self.v_splitter.setChildrenCollapsible(False)
-        self.v_splitter.addWidget(self.tab_widget)
-        self.v_splitter.addWidget(self.query_result_viewer)
-        self.main_layout.addWidget(self.v_splitter)
+        self.main_layout.addWidget(self.tab_widget)
 
     def on_tab_changed(self, index: int):
         current_tab = self.tab_widget.tabText(index)
@@ -154,6 +149,7 @@ class QueryEditor(QWidget):
 
             data = self.current_db_manager.execute_query(sql)
             self.query_result_viewer.display_results(data)
+            self.export_action.setEnabled(len(data.get("rows", [])) > 0)
 
             execution_time = data.get('execution_time', 0)
             execution_timestamp = data.get('execution_timestamp', 0)
@@ -182,12 +178,10 @@ class QueryEditor(QWidget):
                 self._show_okay_status(f"Query executed successfully in {execution_time:.3f} seconds.")
         except Exception as e:
             self._show_error_status("Failed to execute query: " + str(e))
+            self.export_action.setEnabled(False)
             self.query_result_viewer.clear_results()
 
     def save_sql(self):
-        if self.sql_input.toPlainText().strip() == '':
-            return
-
         file_name, _ = QFileDialog.getSaveFileName(self, 'Save Query', "", "SQL files (*.sql);;All Files (*.*)")
         if file_name:
             f = open(file_name, 'w')
@@ -210,7 +204,7 @@ class QueryEditor(QWidget):
         if not index.isValid():
             return
 
-        if index.column() != 3:
+        if index.column() != 4:
             return
 
         value = index.data(Qt.ItemDataRole.DisplayRole)
@@ -248,6 +242,46 @@ class QueryEditor(QWidget):
             except Exception as e:
                 self._show_error_status("Failed to clear history: " + str(e))
 
+    def on_query_text_changed(self):
+        text = self.sql_input.toPlainText().strip()
+        # self.format_action.setEnabled(len(text) > 0)
+        self.save_action.setEnabled(len(text) > 0)
+        self.execute_action.setEnabled(len(text) > 0)
+
+    # There is some issues with sqlparse with regards to
+    # create statements. For now i will disable the
+    # format option until it is fixed or will make
+    # my own formatter (who knows)
+    # def format_query(self):
+    #     try:
+    #         formatted = sqlparse.format(
+    #             self.sql_input.toPlainText().strip(),
+    #             reindent = True,
+    #             keyword_case = 'upper',
+    #             indent_width = 4,
+    #             strip_comments = False,
+    #             use_space_around_operators = True,
+    #             commas_first = False
+    #         )
+    #
+    #         self.sql_input.setPlainText(formatted)
+    #         self._show_okay_status(f"Query formatted")
+    #
+    #     except Exception as e:
+    #         self._show_error_status("Failed to format query: " + str(e))
+
+    def export_data_to_csv(self):
+        file_name, _ = QFileDialog.getSaveFileName(self, 'Save Results', "", "CSV (*.csv);;All Files (*.*)")
+        if file_name:
+            with open(file_name, 'w') as f:
+                writer = csv.writer(f)
+                columns = self.query_result_viewer.all_columns
+                rows = self.query_result_viewer.all_rows
+                writer.writerow(columns)
+                writer.writerows(rows)
+                f.close()
+
+            QMessageBox.information(self, f'Query results saved', f'Query results saved to {file_name}')
 
     def _create_toolbar(self):
         toolbar = QToolBar()
@@ -258,25 +292,31 @@ class QueryEditor(QWidget):
 
         actions = []
 
-        execute_action = QAction("Execute", self)
-        execute_action.triggered.connect(self.execute_query)
+        self.execute_action = QAction("Execute", self)
+        self.execute_action.setEnabled(False)
+        self.execute_action.triggered.connect(self.execute_query)
         execute_key_sequence = QKeySequence(QKeySequence.StandardKey.Refresh)
-        execute_action.setShortcut(execute_key_sequence)
-        execute_action.setToolTip(f"Execute ({execute_key_sequence.toString()})")
-        actions.append(execute_action)
+        self.execute_action.setShortcut(execute_key_sequence)
+        self.execute_action.setToolTip(f"Execute ({execute_key_sequence.toString()})")
+        actions.append(self.execute_action)
 
-        export_action = QAction("Export", self)
-        actions.append(export_action)
+        self.export_action = QAction("Export", self)
+        self.export_action.setEnabled(False)
+        self.export_action.triggered.connect(self.export_data_to_csv)
+        actions.append(self.export_action)
 
-        format_action = QAction("Format", self)
-        actions.append(format_action)
+        # self.format_action = QAction("Format", self)
+        # self.format_action.setEnabled(False)
+        # self.format_action.triggered.connect(self.format_query)
+        # actions.append(self.format_action)
 
-        save_action = QAction("Save", self)
+        self.save_action = QAction("Save", self)
         save_action_sequence = QKeySequence(QKeySequence.StandardKey.Save)
-        save_action.setShortcut(save_action_sequence)
-        save_action.setToolTip(f"Save ({save_action_sequence.toString()})")
-        save_action.triggered.connect(self.save_sql)
-        actions.append(save_action)
+        self.save_action.setShortcut(save_action_sequence)
+        self.save_action.setToolTip(f"Save ({save_action_sequence.toString()})")
+        self.save_action.triggered.connect(self.save_sql)
+        self.save_action.setEnabled(False)
+        actions.append(self.save_action)
 
         load_action = QAction("Load", self)
         load_action.setShortcut(QKeySequence("Ctrl+L"))
@@ -297,6 +337,7 @@ class QueryEditor(QWidget):
         self.sql_input = QPlainTextEdit()
 
         SQLHighlighter(self.sql_input.document())
+        self.sql_input.textChanged.connect(self.on_query_text_changed)
 
         sql_font = QFont()
         sql_font.setFamily("Consolas")
@@ -309,7 +350,12 @@ class QueryEditor(QWidget):
 
         layout.addWidget(self.sql_input )
         layout.addWidget(self.status_label)
-        self.tab_widget.addTab(self.editor, "Query")
+        self.v_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.v_splitter.setChildrenCollapsible(False)
+        self.v_splitter.addWidget(self.editor)
+        self.v_splitter.addWidget(self.query_result_viewer)
+        self.tab_widget.addTab(self.v_splitter, "Query Editor")
+
 
     def _create_history_table(self):
         history_widget = QWidget()

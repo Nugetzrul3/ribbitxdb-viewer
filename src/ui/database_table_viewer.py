@@ -47,7 +47,7 @@ class DatabaseTableViewer(QWidget):
         """Initialise table settings"""
         self.table_view.setAlternatingRowColors(True)
         self.table_view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
-        self.table_view.setEditTriggers(QTableView.EditTrigger.DoubleClicked)
+        self.table_view.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
         self.table_view.setVerticalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
         self.table_view.setHorizontalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
 
