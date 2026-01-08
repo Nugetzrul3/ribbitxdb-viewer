@@ -12,6 +12,7 @@ A simple database viewer for the [RibbitXDB](https://github.com/ribbitx/ribbitxd
 * Dropping tables and views
 * Query execution, both selected and whole query
 * Query syntax highlighting
+* Query history viewer
 * Loading and saving SQL
 * Exporting results to CSV
 
