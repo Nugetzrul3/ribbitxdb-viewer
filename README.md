@@ -1,4 +1,5 @@
 # RibbitXDB Database Viewer
+![Downloads](https://img.shields.io/github/downloads/Nugetzrul3/ribbitxdb-viewer/latest/total)
 
 A simple database viewer for the [RibbitXDB](https://github.com/ribbitx/ribbitxdb) engine
 
