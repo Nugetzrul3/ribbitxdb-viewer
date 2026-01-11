@@ -19,7 +19,7 @@ A simple database viewer for the [RibbitXDB](https://github.com/ribbitx/ribbitxd
 ### Requirements
 
 ```requirements
-ribbitxdb~=1.1.7
+ribbitxdb~=1.1.8
 PySide6-Essentials~=6.10.1
 platformdirs~=4.5.1
 pyinstaller~=6.17.0
