@@ -39,20 +39,18 @@ class SQLHighlighter(QSyntaxHighlighter):
             )
             self.highlighting_rules.append((pattern, keyword_format))
 
-        string_format = QTextCharFormat()
-        string_format.setForeground(QColor("#7DD3FC"))
-        self.highlighting_rules.append((
-            QRegularExpression("'[^']*'"), string_format
-        ))
-        self.highlighting_rules.append((
-            QRegularExpression('"[^"]*"'), string_format
-        ))
+        self.string_format = QTextCharFormat()
+        self.string_format.setForeground(QColor("#7DD3FC"))
+
+        # String patterns
+        self.string_patterns = [
+            QRegularExpression("'[^']*'"),
+            QRegularExpression('"[^"]*"')
+        ]
 
         number_format = QTextCharFormat()
         number_format.setForeground(QColor("#FFA500"))
-        self.highlighting_rules.append((
-            QRegularExpression("(?<![\"'])\\b[0-9]+(?:\\.[0-9]+)?\\b(?![\"'])"), number_format
-        ))
+        self.number_pattern = QRegularExpression("\\b[0-9]+(?:\\.[0-9]+)?\\b")
 
         comment_format = QTextCharFormat()
         comment_format.setForeground(QColor("#6B7280"))
@@ -70,12 +68,50 @@ class SQLHighlighter(QSyntaxHighlighter):
 
     def highlightBlock(self, text):
         """Apply syntax highlighting to a block of text"""
+        # Track which positions are inside strings
+        string_ranges = []
+
+        # First pass: Highlight strings and track their positions
+        for pattern in self.string_patterns:
+            iterator = pattern.globalMatch(text)
+            while iterator.hasNext():
+                match = iterator.next()
+                start = match.capturedStart()
+                length = match.capturedLength()
+                self.setFormat(start, length, self.string_format)
+                string_ranges.append((start, start + length))
+
+        # Second pass: Apply other rules, but skip string ranges
         for pattern, format_style in self.highlighting_rules:
             iterator = pattern.globalMatch(text)
             while iterator.hasNext():
                 match = iterator.next()
-                self.setFormat(
-                    match.capturedStart(),
-                    match.capturedLength(),
-                    format_style
+                start = match.capturedStart()
+                length = match.capturedLength()
+
+                # Check if this match is inside a string
+                inside_string = any(
+                    s_start <= start < s_end
+                    for s_start, s_end in string_ranges
                 )
+
+                if not inside_string:
+                    self.setFormat(start, length, format_style)
+
+        # Third pass: Highlight numbers (outside strings only)
+        iterator = self.number_pattern.globalMatch(text)
+        while iterator.hasNext():
+            match = iterator.next()
+            start = match.capturedStart()
+            length = match.capturedLength()
+
+            # Check if this number is inside a string
+            inside_string = any(
+                s_start <= start < s_end
+                for s_start, s_end in string_ranges
+            )
+
+            if not inside_string:
+                number_format = QTextCharFormat()
+                number_format.setForeground(QColor("#FFA500"))
+                self.setFormat(start, length, number_format)
