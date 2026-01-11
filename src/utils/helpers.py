@@ -32,7 +32,7 @@ def get_dummy_data(col_type: str, column: str) -> Any:
         return 0
     if col_type == 'REAL':
         return 0.0
-    return f'\"{column}\"'
+    return f'\'{column}\''
     # How to determine boolean?
 
 def query_viewer_db(
@@ -56,14 +56,21 @@ def query_viewer_db(
                 columns = [desc[0] for desc in query.description]
                 rows = query.fetchall()
 
+                conn.commit()
+                cursor.close()
+                conn.close()
                 return {
                     'columns': columns,
                     'rows': rows,
                 }
-
-            conn.commit()
-            cursor.close()
-            conn.close()
+            else:
+                conn.commit()
+                cursor.close()
+                conn.close()
+                return {
+                    'columns': [],
+                    'rows': [],
+                }
         # bulk query
         elif isinstance(query, list):
             if table and key_cols:

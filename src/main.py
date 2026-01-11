@@ -4,7 +4,6 @@ from src.utils import query_viewer_db
 from src import APP_NAME, APP_AUTHOR
 from PySide6.QtCore import Qt
 from pathlib import Path
-import ribbitxdb
 import sys
 
 def main():

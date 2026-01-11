@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 import ribbitxdb
 import time
@@ -117,12 +117,13 @@ class DatabaseManager:
 
         return schema
 
-    def get_table_data_paginated(self, table_name: str, page: int = 1, page_size: int = 100) -> Dict[str, Any]:
+    def get_table_data_paginated(self, table_name: str, page: int = 1, page_size: int = 100, filters: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Returns paginated data from the selected table
         :param table_name: Table name
         :param page: Page number (1-indexed)
         :param page_size: Number of rows per page
+        :param filters: Filters for searching and sorting
         :return: Dict[str, Any]
         """
         try:
@@ -132,15 +133,45 @@ class DatabaseManager:
 
         offset = (page - 1) * page_size
         cursor = connection.cursor()
+        query = f"{table_name}"
 
-        count_query = cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+        if filters:
+            # apply search filters first
+            if columns := filters.get("columns", None):
+                query += " WHERE "
+                final_filters = []
+                for column in columns:
+                    col, val = column.get("condition")
+                    filter_type = column.get("type")
+
+                    match filter_type:
+                        case "EQUALS":
+                            # id = 1
+                            final_filters.append(f"{col} = {val}")
+                        case "LIKE":
+                            # text LIKE '%text%'
+                            final_filters.append(f"{col} {val}")
+
+                filter_string = " OR ".join(final_filters)
+                query += f"{filter_string}"
+
+            # apply sort after
+            if sorting := filters.get("sorting", None):
+                column = sorting.get("column")
+                order = sorting.get("order")
+
+                query += f" ORDER BY {column} {order}"
+
+        count_query = cursor.execute(f" SELECT COUNT(*) FROM {query}")
         total_rows = count_query.fetchone()[0]
 
         query = cursor.execute(
-            f"SELECT * FROM {table_name} LIMIT ? OFFSET ?",
+            f"SELECT * FROM {query} LIMIT ? OFFSET ?",
             (page_size, offset)
         )
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
+        if columns[0] == "count_*":
+            columns.pop()
         rows = query.fetchall()
 
         cursor.close()

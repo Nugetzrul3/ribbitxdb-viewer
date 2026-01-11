@@ -235,18 +235,10 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Table {table_name} deleted from {db_name}")
 
     def _load_dbs(self):
-        """Load databases saved in csv"""
+        """Load databases saved in db"""
         db_list = []
 
         if (self.data_dir / 'viewer.rbx').exists():
-            # with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
-            #     cursor = connection.cursor()
-            #     query = cursor.execute("SELECT path FROM databases ORDER BY id DESC")
-            #     for row in query.fetchall():
-            #         db_path = row[0]
-            #         db_list.append(db_path)
-            #
-            #     cursor.close()
             query = query_viewer_db("SELECT path FROM databases ORDER BY id DESC")
             rows = query.get('rows')
 
@@ -268,11 +260,6 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """On window close, save open dbs to datadir file"""
         db_list = [x for x in self.db_managers.keys()]
-
-        # with ribbitxdb.connect((self.data_dir / 'viewer.rbx').as_posix()) as connection:
-        #     batch_ops = BatchOperations(connection)
-        #     rows = [{'path': x} for x in db_list]
-        #     batch_ops.bulk_upsert('databases', rows, ['path'])
 
         rows = [{'path': x} for x in db_list]
         query_viewer_db(rows, params=None, table='databases', key_cols=['path'])

@@ -29,6 +29,6 @@ pyinstaller~=6.17.0
 
 * Add ability to insert new tables
 * Add ability to modify columns
-* Add effective sorting based on data types
+* Add effective sorting based on data types (COMPLETED ✅)
 * Add ability to add, delete and modify rows
-* Add ability to filter/search rows
+* Add ability to filter/search rows (COMPLETED ✅)

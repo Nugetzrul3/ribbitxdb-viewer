@@ -57,12 +57,8 @@ class QueryEditor(QWidget):
         if current_tab == 'History':
             # populate history table
             try:
-                query: dict = query_viewer_db('SELECT database, execution_timestamp, execution_time, row_count, query, id FROM history ORDER BY id DESC')
+                query: dict = query_viewer_db('SELECT database, execution_timestamp, execution_time, row_count, query FROM history ORDER BY id DESC')
                 rows = query.get('rows')
-                columns = query.get('columns')
-
-                if len(rows) > 0:
-                    columns.pop()
 
                 h_header = self.history_table.horizontalHeader()
                 h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -135,7 +131,6 @@ class QueryEditor(QWidget):
 
     def execute_query(self):
         try:
-            sql: str
             if self.sql_input.textCursor().hasSelection():
                 sql = self.sql_input.textCursor().selectedText()
             else:
@@ -149,23 +144,6 @@ class QueryEditor(QWidget):
             execution_timestamp = data.get('execution_timestamp', 0)
             rows_affected = data.get('rows_affected', 0)
 
-            # connection = ribbitxdb.connect(f'{self.data_dir}/viewer.rbx')
-            # cursor = connection.cursor()
-            #
-            # cursor.execute(
-            #     "INSERT INTO history (database, query, row_count, execution_time, execution_timestamp) VALUES (?, ?, ?, ?, ?)",
-            #    (
-            #        self.current_db_manager.db_name,
-            #        sql.strip(),
-            #        rows_affected,
-            #        execution_time,
-            #        datetime.fromtimestamp(execution_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-            #    )
-            # )
-            # cursor.close()
-            # connection.commit()
-            # connection.close()
-
             query_viewer_db(
                 "INSERT INTO history (database, query, row_count, execution_time, execution_timestamp) VALUES (?, ?, ?, ?, ?)",
                     (
@@ -177,11 +155,8 @@ class QueryEditor(QWidget):
                     )
             )
 
+            self._show_okay_status(f"Query executed successfully in {execution_time:.3f} seconds. {rows_affected} rows affected.")
 
-            if rows_affected > 0:
-                self._show_okay_status(f"Query executed successfully in {execution_time:.3f} seconds. {rows_affected} rows affected.")
-            else:
-                self._show_okay_status(f"Query executed successfully in {execution_time:.3f} seconds.")
         except Exception as e:
             self._show_error_status("Failed to execute query: " + str(e))
             self.export_action.setEnabled(False)
@@ -236,12 +211,6 @@ class QueryEditor(QWidget):
 
         if clear_history_dialog.exec():
             try:
-                # connection = ribbitxdb.connect(f'{self.data_dir}/viewer.rbx')
-                # cursor = connection.cursor()
-                # cursor.execute('DELETE FROM history')
-                # cursor.close()
-                # connection.commit()
-                # connection.close()
                 query_viewer_db('DELETE FROM history')
 
                 self.data_model.set_data([])

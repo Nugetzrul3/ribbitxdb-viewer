@@ -1,9 +1,16 @@
-from PySide6.QtWidgets import QTableView, QHeaderView, QMessageBox, QVBoxLayout, QWidget, QLabel, QStackedWidget
+from PySide6.QtWidgets import (
+    QTableView, QHeaderView, QMessageBox,
+    QVBoxLayout, QWidget, QLabel, QStackedWidget,
+    QHBoxLayout, QLineEdit, QPushButton, QListWidgetItem
+)
+from .custom.multiselect_combo_box import MultiSelectComboBox
 from ..models.database_table_model import DatabaseTableModel
-from PySide6.QtCore import QSortFilterProxyModel, Qt
+from ..utils import try_convert_int, try_convert_float
 from ..core.database_manager import DatabaseManager
 from .pagination_widget import PaginationWidget
 from typing import Dict, Any, Optional
+from PySide6.QtCore import Qt
+
 
 
 class DatabaseTableViewer(QWidget):
@@ -16,9 +23,8 @@ class DatabaseTableViewer(QWidget):
         self.current_db_manager: Optional[DatabaseManager] = None
         self.table_view = QTableView()
         self.data_model = DatabaseTableModel()
-        self.proxy_model = QSortFilterProxyModel()
-        self.proxy_model.setSourceModel(self.data_model)
-        self.table_view.setModel(self.proxy_model)
+        self.table_view.setModel(self.data_model)
+        self.filters = {}
         self.setup_ui()
 
     def setup_ui(self):
@@ -26,6 +32,33 @@ class DatabaseTableViewer(QWidget):
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
+
+        h_layout = QHBoxLayout()
+        h_layout.setContentsMargins(5, 0, 0, 5)
+        h_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        h_layout.setSpacing(10)
+        self.main_layout.addLayout(h_layout)
+
+        self.multi_combo_box = MultiSelectComboBox()
+        self.multi_combo_box.setMaximumWidth(200)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search Data")
+        
+        self.search_input.setMaximumWidth(300)
+        self.search_input.setEnabled(False)
+        self.search_input.returnPressed.connect(self.search)
+
+        self.search_button = QPushButton("Search🔍")
+        self.search_button.setMaximumWidth(100)
+        self.search_button.clicked.connect(self.search)
+
+        columns_to_filter_label = QLabel("Columns to search: ")
+        columns_to_filter_label.setMaximumWidth(100)
+        h_layout.addWidget(columns_to_filter_label)
+        h_layout.addWidget(self.multi_combo_box)
+        h_layout.addWidget(self.search_input)
+        h_layout.addWidget(self.search_button)
 
         self.setup_table_view()
         self.stacked_widget = QStackedWidget()
@@ -50,15 +83,37 @@ class DatabaseTableViewer(QWidget):
         self.table_view.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
         self.table_view.setVerticalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
         self.table_view.setHorizontalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
+        self.table_view.horizontalHeader().sortIndicatorChanged.connect(self.on_sorting_changed)
 
         v_header = self.table_view.verticalHeader()
         v_header.setVisible(True)
 
+    def on_sorting_changed(self, idx: int, sorting: Qt.SortOrder):
+        if idx == -1:
+            return
+
+        data = self.data_model.headerData(idx, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole)
+        # need to flip
+        sorting = 'DESC' if sorting == Qt.SortOrder.AscendingOrder else 'ASC'
+        self.filters['sorting'] = {
+            'column': data,
+            'order': sorting
+        }
+
+        # call this function again for the sake of not duplicating
+        current_page = self.pagination.current_page
+        self.on_page_changed(current_page)
+
+
     def display_data(self, data: Dict[str, Any], db_manager: Optional[DatabaseManager] = None,
                      table_name: Optional[str] = None):
         """Display query results"""
+        self.multi_combo_box.clear_items()
+        self.search_input.setText("")
         if data.get('total_rows') == 0:
             self.clear_data()
+            self.search_input.setEnabled(False)
+            self.search_button.setEnabled(False)
             self.stacked_widget.setCurrentIndex(1)
             return
 
@@ -73,13 +128,20 @@ class DatabaseTableViewer(QWidget):
         self.table_view.setSortingEnabled(False)
         self.data_model.set_data(data)
         self.table_view.setSortingEnabled(True)
-        self.table_view.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
+        h_header.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
 
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         h_header.setStretchLastSection(True)
 
+        # column types
+        schema = self.current_db_manager.get_table_schema(table_name)
+        columns = [(x['column_name'], x['column_type']) for x in schema]
+
+        self.multi_combo_box.add_items(columns)
         total_rows = data.get('total_rows', len(data.get('rows', [])))
         self.pagination.set_total_rows(total_rows)
+        self.search_input.setEnabled(True)
+        self.search_button.setEnabled(True)
 
     def on_page_changed(self, page: int):
         if not self.current_table or not self.current_db_manager:
@@ -88,15 +150,85 @@ class DatabaseTableViewer(QWidget):
         try:
             page_size = self.pagination.page_size
             data = self.current_db_manager.get_table_data_paginated(
-                self.current_table, page, page_size
+                self.current_table, page, page_size, self.filters
             )
 
-            self.table_view.setSortingEnabled(False)
             self.data_model.set_data(data)
-            self.table_view.setSortingEnabled(True)
-            self.table_view.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load page: {str(e)}")
+            raise e
+
+
+    # We already have db manager, we can just query the paginated search
+    def search(self):
+        if len(self.search_input.text()) == 0:
+            self.filters["columns"] = []
+            page_size = self.pagination.page_size
+            data = self.current_db_manager.get_table_data_paginated(
+                self.current_table, 1, page_size, self.filters
+            )
+
+            h_header = self.table_view.horizontalHeader()
+            h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+            self.data_model.set_data(data)
+
+            h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+            h_header.setStretchLastSection(True)
+
+            self.pagination.set_total_rows(data.get('total_rows', len(data.get('rows', []))))
+            self.pagination.go_to_page(1)
+            return
+
+        filter_columns = []
+        filter_items_selected = self.multi_combo_box.get_selected_items()
+        search_text = self.search_input.text().strip()
+
+        # when we search, we check the column types. for text types, convert
+        # just pass the search query into the column filter. for int or real,
+        # try to convert the search query into an int first, then try to
+        # convert into a float. if any pass, then just add them to the filter
+        for item in filter_items_selected:
+            list_item: QListWidgetItem = item[1]
+            data = list_item.data(Qt.ItemDataRole.UserRole)
+            if data == "TEXT":
+                filter_columns.append({
+                    "condition": (item[0], f"LIKE '%{search_text}%'"),
+                    "type": "LIKE"
+                })
+                continue
+            # item is int or real
+            if data == "INTEGER":
+                if try_convert_int(search_text):
+                    filter_columns.append({
+                        "condition": (item[0], int(search_text)),
+                        "type": "EQUALS"
+                    })
+
+            if data == "REAL":
+                if try_convert_float(search_text):
+                    filter_columns.append({
+                        "condition": (item[0], float(search_text)),
+                        "type": "EQUALS"
+                    })
+
+
+        self.filters['columns'] = filter_columns
+        page_size = self.pagination.page_size
+        data = self.current_db_manager.get_table_data_paginated(
+            self.current_table, 1, page_size, self.filters
+        )
+
+        h_header = self.table_view.horizontalHeader()
+        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        self.data_model.set_data(data)
+
+        h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        h_header.setStretchLastSection(True)
+
+        self.pagination.set_total_rows(data.get('total_rows', len(data.get('rows', []))))
+        self.pagination.go_to_page(1)
 
     def on_page_size_changed(self, page_size: int):
         current_page = self.pagination.current_page

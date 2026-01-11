@@ -1,8 +1,8 @@
-from PySide6.QtWidgets import QTableView, QHeaderView, QVBoxLayout, QWidget, QMessageBox
+from PySide6.QtWidgets import QTableView, QHeaderView, QVBoxLayout, QWidget
 from ..models.database_table_model import DatabaseTableModel
-from PySide6.QtCore import QSortFilterProxyModel, Qt
 from .pagination_widget import PaginationWidget
 from typing import Dict, Any, List
+from PySide6.QtCore import Qt
 
 
 class QueryResultViewer(QWidget):
@@ -15,6 +15,10 @@ class QueryResultViewer(QWidget):
         self.all_columns: List[str] = []
         self.all_rows: List[tuple] = []
 
+        # Track current sort state
+        self.current_sort_column: int = -1
+        self.current_sort_order: Qt.SortOrder = Qt.SortOrder.DescendingOrder
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -25,9 +29,7 @@ class QueryResultViewer(QWidget):
 
         self.table_view = QTableView()
         self.data_model = DatabaseTableModel()
-        self.proxy_model = QSortFilterProxyModel()
-        self.proxy_model.setSourceModel(self.data_model)
-        self.table_view.setModel(self.proxy_model)
+        self.table_view.setModel(self.data_model)
 
         self.setup_table_view()
         layout.addWidget(self.table_view)
@@ -49,6 +51,8 @@ class QueryResultViewer(QWidget):
 
         h_header = self.table_view.horizontalHeader()
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        h_header.sortIndicatorChanged.connect(self.on_sort_changed)
+        h_header.setSortIndicatorClearable(True)
 
         v_header = self.table_view.verticalHeader()
         v_header.setVisible(True)
@@ -60,8 +64,37 @@ class QueryResultViewer(QWidget):
         self.all_columns = result.get('columns', [])
         self.all_rows = result.get('rows', [])
 
+        self.current_sort_column = -1
+        self.current_sort_order = Qt.SortOrder.AscendingOrder
+
         self.pagination.set_total_rows(len(self.all_rows))
         self._display_page(page=1)
+
+    def on_sort_changed(self, idx: int, sorting: Qt.SortOrder):
+        self.current_sort_column = idx
+        self.current_sort_order = sorting
+
+        self._sort_all_data()
+        current_page = self.pagination.current_page
+        self._display_page(current_page)
+
+    def _sort_all_data(self):
+        """Sort all data in memory using column and order"""
+        if self.current_sort_column < 0 or not self.all_rows:
+            return
+
+        reverse = self.current_sort_order == Qt.SortOrder.AscendingOrder
+
+        try:
+            self.all_rows.sort(
+                key = lambda row: float(row[self.current_sort_column]) if row[self.current_sort_column] is not None else float('-inf'),
+                reverse = reverse
+            )
+        except (ValueError, TypeError):
+            self.all_rows.sort(
+                key=lambda row: str(row[self.current_sort_column]) if row[self.current_sort_column] is not None else "",
+                reverse=reverse
+            )
 
     def _display_page(self, page: int):
         """Display a specific page of results (client-side pagination)"""
@@ -86,7 +119,14 @@ class QueryResultViewer(QWidget):
         self.table_view.setSortingEnabled(False)
         self.data_model.set_data(page_data)
         self.table_view.setSortingEnabled(True)
-        self.table_view.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
+
+        # Restore sort indicator without triggering sort
+        if self.current_sort_column >= 0:
+            h_header.blockSignals(True)
+            h_header.setSortIndicator(self.current_sort_column, self.current_sort_order)
+            h_header.blockSignals(False)
+        else:
+            h_header.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
 
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         h_header.setStretchLastSection(True)
@@ -116,4 +156,6 @@ class QueryResultViewer(QWidget):
         self.data_model.set_data(empty_data)
         self.all_columns = []
         self.all_rows = []
+        self.current_sort_column = -1
+        self.current_sort_order = Qt.SortOrder.DescendingOrder
         self.pagination.reset()
