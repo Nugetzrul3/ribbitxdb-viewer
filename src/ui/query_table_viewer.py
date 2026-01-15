@@ -1,7 +1,12 @@
-from PySide6.QtWidgets import QTableView, QHeaderView, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QTableView, QHeaderView, QVBoxLayout,
+    QWidget, QMenu
+)
 from ..models.database_table_model import DatabaseTableModel
 from .pagination_widget import PaginationWidget
+from ..utils import copy_to_clipboard
 from typing import Dict, Any, List
+from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
 
 
@@ -48,6 +53,8 @@ class QueryResultViewer(QWidget):
         self.table_view.setSortingEnabled(True)
         self.table_view.setVerticalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
         self.table_view.setHorizontalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
+        self.table_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table_view.customContextMenuRequested.connect(self.on_context_menu)
 
         h_header = self.table_view.horizontalHeader()
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -56,6 +63,20 @@ class QueryResultViewer(QWidget):
 
         v_header = self.table_view.verticalHeader()
         v_header.setVisible(True)
+
+    def on_context_menu(self, pos):
+        idx = self.table_view.indexAt(pos)
+
+        if idx.isValid():
+            menu = QMenu()
+
+            copy_action = QAction('Copy Value')
+            copy_action.triggered.connect(
+                lambda: copy_to_clipboard(idx.data(Qt.ItemDataRole.DisplayRole))
+            )
+            menu.addAction(copy_action)
+
+            menu.exec(self.table_view.viewport().mapToGlobal(pos))
 
     def display_results(self, result: Dict[str, Any]):
         """

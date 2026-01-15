@@ -273,7 +273,7 @@ class DatabaseManager:
             return {
                 'columns': [],
                 'rows': [],
-                'rows_affected': row_count,
+                'rows_affected': row_count if row_count > 0 else 0,
                 'total_rows': 0,
                 'truncated': False,
                 **time_data

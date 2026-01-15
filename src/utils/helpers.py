@@ -1,4 +1,5 @@
-from typing import Any, Union, List, Dict, Optional
+from PySide6.QtWidgets import QApplication
+from typing import Any, List, Optional
 from platformdirs import user_data_dir
 from ribbitxdb import BatchOperations
 from src import APP_NAME, APP_AUTHOR
@@ -91,4 +92,9 @@ def query_viewer_db(
             raise ValueError
     except Exception as e:
         raise e
+
+def copy_to_clipboard(text: str):
+    """Copy text to clipboard"""
+    clipboard = QApplication.clipboard()
+    clipboard.setText(text)
 

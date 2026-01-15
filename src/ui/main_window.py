@@ -1,10 +1,10 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
-    QSplitter, QToolBar, QMessageBox
+    QSplitter, QToolBar, QMessageBox,
+    QFileDialog
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon
 from .database_table_viewer import DatabaseTableViewer
-from .dialogs.open_db_dialog import OpenDatabaseDialog
 from ..core.database_manager import DatabaseManager
 from .dialogs.about_dialog import AboutDialog
 from PySide6.QtCore import Qt, QSettings
@@ -142,21 +142,14 @@ class MainWindow(QMainWindow):
 
     def open_database(self):
         """Open database dialog"""
-        dialog = OpenDatabaseDialog(self)
-        if dialog.exec():
-            filepath = dialog.get_filepath()
-            filepath = Path(filepath).as_posix()
-            self.open_database_viewer()
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Database File",
+            "",
+            "Database Files (*.rbx);;All Files (*.*)"
+        )
 
-            # Check if already open
-            if filepath in self.db_managers:
-                QMessageBox.information(
-                    self,
-                    "Already Open",
-                    f"Database '{filepath}' is already open."
-                )
-                return
-
+        if filepath:
             try:
                 # Create new database manager for this connection and store
                 db_manager = DatabaseManager(filepath)

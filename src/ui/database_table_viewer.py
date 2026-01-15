@@ -1,11 +1,12 @@
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QTableView, QHeaderView, QMessageBox,
     QVBoxLayout, QWidget, QLabel, QStackedWidget,
-    QHBoxLayout, QLineEdit, QPushButton, QListWidgetItem
+    QHBoxLayout, QLineEdit, QPushButton, QListWidgetItem, QMenu
 )
+from ..utils import try_convert_int, try_convert_float, copy_to_clipboard
 from .custom.multiselect_combo_box import MultiSelectComboBox
 from ..models.database_table_model import DatabaseTableModel
-from ..utils import try_convert_int, try_convert_float
 from ..core.database_manager import DatabaseManager
 from .pagination_widget import PaginationWidget
 from typing import Dict, Any, Optional
@@ -37,6 +38,12 @@ class DatabaseTableViewer(QWidget):
         h_layout.setContentsMargins(5, 0, 0, 5)
         h_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         h_layout.setSpacing(10)
+
+        h_layout_cud = QHBoxLayout()
+        h_layout_cud.setContentsMargins(5, 0, 0, 5)
+        h_layout_cud.setAlignment(Qt.AlignmentFlag.AlignRight)
+        h_layout_cud.setSpacing(5)
+
         self.main_layout.addLayout(h_layout)
 
         self.multi_combo_box = MultiSelectComboBox()
@@ -60,6 +67,15 @@ class DatabaseTableViewer(QWidget):
         h_layout.addWidget(self.search_input)
         h_layout.addWidget(self.search_button)
 
+        self.add_button = QPushButton("Add Row ➕")
+        self.update_button = QPushButton("Commit changes ✔️")
+        self.delete_button = QPushButton("Delete Row(s) ➖")
+
+        h_layout_cud.addWidget(self.add_button)
+        h_layout_cud.addWidget(self.update_button)
+        h_layout_cud.addWidget(self.delete_button)
+        h_layout.addLayout(h_layout_cud)
+
         self.setup_table_view()
         self.stacked_widget = QStackedWidget()
         self.stacked_widget.addWidget(self.table_view)
@@ -76,6 +92,13 @@ class DatabaseTableViewer(QWidget):
         self.pagination.page_size_changed.connect(self.on_page_size_changed)
         self.main_layout.addWidget(self.pagination)
 
+        self.add_button.setEnabled(False)
+        self.update_button.setEnabled(False)
+        self.delete_button.setEnabled(False)
+        self.search_input.setEnabled(False)
+        self.search_button.setEnabled(False)
+        self.stacked_widget.setCurrentIndex(1)
+
     def setup_table_view(self):
         """Initialise table settings"""
         self.table_view.setAlternatingRowColors(True)
@@ -84,9 +107,25 @@ class DatabaseTableViewer(QWidget):
         self.table_view.setVerticalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
         self.table_view.setHorizontalScrollMode(QTableView.ScrollMode.ScrollPerPixel)
         self.table_view.horizontalHeader().sortIndicatorChanged.connect(self.on_sorting_changed)
+        self.table_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table_view.customContextMenuRequested.connect(self.on_context_menu)
 
         v_header = self.table_view.verticalHeader()
         v_header.setVisible(True)
+
+    def on_context_menu(self, pos):
+        idx = self.table_view.indexAt(pos)
+
+        if idx.isValid():
+            menu = QMenu()
+
+            copy_action = QAction('Copy Value')
+            copy_action.triggered.connect(
+                lambda: copy_to_clipboard(idx.data(Qt.ItemDataRole.DisplayRole))
+            )
+            menu.addAction(copy_action)
+
+            menu.exec(self.table_view.viewport().mapToGlobal(pos))
 
     def on_sorting_changed(self, idx: int, sorting: Qt.SortOrder):
         if idx == -1:
@@ -112,6 +151,9 @@ class DatabaseTableViewer(QWidget):
         self.search_input.setText("")
         if data.get('total_rows') == 0:
             self.clear_data()
+            self.add_button.setEnabled(True)
+            self.update_button.setEnabled(False)
+            self.delete_button.setEnabled(False)
             self.search_input.setEnabled(False)
             self.search_button.setEnabled(False)
             self.stacked_widget.setCurrentIndex(1)
@@ -142,6 +184,9 @@ class DatabaseTableViewer(QWidget):
         self.pagination.set_total_rows(total_rows)
         self.search_input.setEnabled(True)
         self.search_button.setEnabled(True)
+        self.add_button.setEnabled(True)
+        self.update_button.setEnabled(True)
+        self.delete_button.setEnabled(True)
 
     def on_page_changed(self, page: int):
         if not self.current_table or not self.current_db_manager:

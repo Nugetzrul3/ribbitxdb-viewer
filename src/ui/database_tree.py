@@ -1,15 +1,15 @@
 from PySide6.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QMenu,
-    QMessageBox, QApplication
+    QMessageBox
 )
+from ..utils import trim_string, get_dummy_data, copy_to_clipboard
 from .dialogs.accept_action_dialog import AcceptActionDialog
 from .dialogs.schema_viewer_dialog import SchemaViewerDialog
 from ..core.database_manager import DatabaseManager
-from ..utils import trim_string, get_dummy_data
 from PySide6.QtCore import Qt, Signal, QPoint
 from PySide6.QtGui import QAction, QCursor
-from .. import APP_NAME, APP_AUTHOR
 from platformdirs import user_data_dir
+from .. import APP_NAME, APP_AUTHOR
 from typing import Optional
 from pathlib import Path
 
@@ -223,7 +223,7 @@ class DatabaseTree(QTreeWidget):
 
             copy_action = QAction("Copy Table Name", self)
             copy_action.triggered.connect(
-                lambda: self.copy_to_clipboard(table_name)
+                lambda: copy_to_clipboard(table_name)
             )
             actions.append(copy_action)
 
@@ -315,7 +315,7 @@ class DatabaseTree(QTreeWidget):
 
             copy_action = QAction("Copy Column Name", self)
             copy_action.triggered.connect(
-                lambda: self.copy_to_clipboard(col_name)
+                lambda: copy_to_clipboard(col_name)
             )
             menu.addAction(copy_action)
 
@@ -333,12 +333,6 @@ class DatabaseTree(QTreeWidget):
 
         menu.exec(QCursor.pos())
 
-    @classmethod
-    def copy_to_clipboard(cls, text: str):
-        """Copy text to clipboard"""
-        clipboard = QApplication.clipboard()
-        clipboard.setText(text)
-
     def generate_select_query(self, table_name: str, db_manager: DatabaseManager):
         """Generate and copy SELECT query to clipboard"""
         query = "SELECT\n"
@@ -351,7 +345,7 @@ class DatabaseTree(QTreeWidget):
         for idx, (column, col_type) in enumerate(columns):
             query += f"\t{column} = {get_dummy_data(col_type, column)}" + (" AND\n" if idx < len(columns) - 1 else ";")
 
-        self.copy_to_clipboard(query)
+        copy_to_clipboard(query)
         self.query_copied.emit(table_name, "SELECT")
 
     def generate_insert_query(self, table_name: str, db_manager: DatabaseManager):
@@ -366,7 +360,7 @@ class DatabaseTree(QTreeWidget):
         for idx, (column, col_type) in enumerate(columns):
             query += f"\n\t{get_dummy_data(col_type, column)}" + ("," if idx < len(columns) - 1 else "\n);")
 
-        self.copy_to_clipboard(query)
+        copy_to_clipboard(query)
         self.query_copied.emit(table_name, "INSERT")
 
     def generate_update_query(self, table_name: str, db_manager: DatabaseManager):
@@ -382,7 +376,7 @@ class DatabaseTree(QTreeWidget):
         for idx, (column, col_type) in enumerate(columns):
             query += f"\t{column} = {get_dummy_data(col_type, column)}" + (" AND\n" if idx < len(columns) - 1 else ";")
 
-        self.copy_to_clipboard(query)
+        copy_to_clipboard(query)
         self.query_copied.emit(table_name, "UPDATE")
 
     def generate_delete_query(self, table_name: str, db_manager: DatabaseManager):
@@ -393,7 +387,7 @@ class DatabaseTree(QTreeWidget):
         for idx, (column, col_type) in enumerate(columns):
             query += f"\t{column} = {get_dummy_data(col_type, column)}" + (" AND\n" if idx < len(columns) - 1 else ";")
 
-        self.copy_to_clipboard(query)
+        copy_to_clipboard(query)
         self.query_copied.emit(table_name, "DELETE")
 
     def delete_view(self, view_name: str, db_manager: DatabaseManager):
@@ -481,6 +475,8 @@ class DatabaseTree(QTreeWidget):
                     'name': table_name,
                     'db_manager': db_manager
                 })
+                table_item.setExpanded(True)
+                self._load_table_columns(table_item, table_name, db_manager)
 
             tables_category.setExpanded(True)
 

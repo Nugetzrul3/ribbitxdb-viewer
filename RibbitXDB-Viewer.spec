@@ -42,7 +42,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='RibbitXDB-Viewer',
+    name='RibbitXDB Viewer',
     debug=False,
     bootloader_ignore_signals=False,
     upx=True,
