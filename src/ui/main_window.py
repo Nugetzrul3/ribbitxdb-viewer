@@ -6,13 +6,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QAction, QKeySequence, QIcon
 from .database_table_viewer import DatabaseTableViewer
 from ..core.database_manager import DatabaseManager
-from .dialogs.about_dialog import AboutDialog
 from PySide6.QtCore import Qt, QSettings
 from .database_tree import DatabaseTree
 from platformdirs import user_data_dir
 from .query_editor import QueryEditor
 from .. import APP_NAME, APP_AUTHOR
 from ..utils import query_viewer_db
+from .dialogs import AboutDialog
 from pathlib import Path
 from typing import Dict
 import sys

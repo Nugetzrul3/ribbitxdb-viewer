@@ -3,8 +3,7 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 from ..utils import trim_string, get_dummy_data, copy_to_clipboard
-from .dialogs.accept_action_dialog import AcceptActionDialog
-from .dialogs.schema_viewer_dialog import SchemaViewerDialog
+from .dialogs import AcceptActionDialog, SchemaViewerDialog
 from ..core.database_manager import DatabaseManager
 from PySide6.QtCore import Qt, Signal, QPoint
 from PySide6.QtGui import QAction, QCursor

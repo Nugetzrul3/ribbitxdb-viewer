@@ -1,1 +1,2 @@
 from .database_table_model import DatabaseTableModel
+from .history_table_model import HistoryTableModel

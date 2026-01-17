@@ -5,10 +5,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QLineEdit, QPushButton, QListWidgetItem, QMenu
 )
 from ..utils import try_convert_int, try_convert_float, copy_to_clipboard
-from .custom.multiselect_combo_box import MultiSelectComboBox
-from ..models.database_table_model import DatabaseTableModel
 from ..core.database_manager import DatabaseManager
 from .pagination_widget import PaginationWidget
+from ..models import DatabaseTableModel
+from .custom import MultiSelectComboBox
 from typing import Dict, Any, Optional
 from PySide6.QtCore import Qt
 
@@ -67,9 +67,13 @@ class DatabaseTableViewer(QWidget):
         h_layout.addWidget(self.search_input)
         h_layout.addWidget(self.search_button)
 
-        self.add_button = QPushButton("Add Row ➕")
-        self.update_button = QPushButton("Commit changes ✔️")
-        self.delete_button = QPushButton("Delete Row(s) ➖")
+        self.add_button = QPushButton("➕")
+        self.add_button.setToolTip("Add row")
+        self.update_button = QPushButton("✔️")
+        self.update_button.setToolTip("Commit changes")
+        self.delete_button = QPushButton("➖")
+        self.delete_button.setToolTip("Delete selected row(s)")
+        self.delete_button.clicked.connect(self.delete_rows)
 
         h_layout_cud.addWidget(self.add_button)
         h_layout_cud.addWidget(self.update_button)
@@ -278,6 +282,9 @@ class DatabaseTableViewer(QWidget):
     def on_page_size_changed(self, page_size: int):
         current_page = self.pagination.current_page
         self.on_page_changed(current_page)
+
+    def delete_rows(self):
+        pass
 
     def clear_data(self):
         """Clear all data from the table"""

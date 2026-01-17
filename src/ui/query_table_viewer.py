@@ -2,8 +2,8 @@ from PySide6.QtWidgets import (
     QTableView, QHeaderView, QVBoxLayout,
     QWidget, QMenu
 )
-from ..models.database_table_model import DatabaseTableModel
 from .pagination_widget import PaginationWidget
+from ..models import DatabaseTableModel
 from ..utils import copy_to_clipboard
 from typing import Dict, Any, List
 from PySide6.QtGui import QAction

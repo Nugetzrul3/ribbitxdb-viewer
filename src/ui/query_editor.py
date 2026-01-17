@@ -3,12 +3,12 @@ from PySide6.QtWidgets import (
     QPlainTextEdit, QVBoxLayout, QTabWidget, QTableView, QHeaderView, QComboBox, QSplitter, QMessageBox, QLabel,
     QFileDialog, QMenu, QApplication, QHBoxLayout, QPushButton
 )
-from .dialogs.accept_action_dialog import AcceptActionDialog
-from .query_table_viewer import QueryResultViewer
-from ..models.history_table_model import HistoryTableModel
 from PySide6.QtGui import QAction, QFont, QKeySequence
 from ..core.database_manager import DatabaseManager
 from ..utils.sql_highlighter import SQLHighlighter
+from .query_table_viewer import QueryResultViewer
+from .dialogs import AcceptActionDialog
+from ..models import HistoryTableModel
 from platformdirs import user_data_dir
 from PySide6.QtCore import Qt, QPoint
 from ..utils import query_viewer_db
