@@ -43,7 +43,7 @@ def query_viewer_db(
         key_cols: Optional[List[str]] = None
 ):
     try:
-        data_dir = user_data_dir(APP_NAME, APP_AUTHOR)
+        data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
         conn = ribbitxdb.connect(data_dir + "/viewer.rbx")
         # regular query
         if isinstance(query, str):

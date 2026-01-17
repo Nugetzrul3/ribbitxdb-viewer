@@ -2,7 +2,8 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QTableView, QHeaderView, QMessageBox,
     QVBoxLayout, QWidget, QLabel, QStackedWidget,
-    QHBoxLayout, QLineEdit, QPushButton, QListWidgetItem, QMenu
+    QHBoxLayout, QLineEdit, QPushButton,
+    QListWidgetItem, QToolBar, QMenu
 )
 from ..utils import try_convert_int, try_convert_float, copy_to_clipboard
 from ..core.database_manager import DatabaseManager
@@ -34,6 +35,8 @@ class DatabaseTableViewer(QWidget):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
 
+        toolbar = QToolBar()
+        self.main_layout.addWidget(toolbar)
         h_layout = QHBoxLayout()
         h_layout.setContentsMargins(5, 0, 0, 5)
         h_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -47,7 +50,6 @@ class DatabaseTableViewer(QWidget):
         self.main_layout.addLayout(h_layout)
 
         self.multi_combo_box = MultiSelectComboBox()
-        self.multi_combo_box.setMaximumWidth(200)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search Data")
@@ -57,15 +59,12 @@ class DatabaseTableViewer(QWidget):
         self.search_input.returnPressed.connect(self.search)
 
         self.search_button = QPushButton("Search🔍")
-        self.search_button.setMaximumWidth(100)
         self.search_button.clicked.connect(self.search)
 
-        columns_to_filter_label = QLabel("Columns to search: ")
-        columns_to_filter_label.setMaximumWidth(100)
-        h_layout.addWidget(columns_to_filter_label)
-        h_layout.addWidget(self.multi_combo_box)
-        h_layout.addWidget(self.search_input)
-        h_layout.addWidget(self.search_button)
+        toolbar.addWidget(QLabel("Columns to search: "))
+        toolbar.addWidget(self.multi_combo_box)
+        toolbar.addWidget(self.search_input)
+        toolbar.addWidget(self.search_button)
 
         self.add_button = QPushButton("➕")
         self.add_button.setToolTip("Add row")
