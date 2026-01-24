@@ -16,6 +16,7 @@ class PaginationWidget(QWidget):
         self.total_pages = 1
         self.page_size = 50
         self.total_rows = 0
+        self.displayed_rows = 0
         self.setup_ui()
 
     def setup_ui(self):
@@ -78,9 +79,10 @@ class PaginationWidget(QWidget):
 
         self.update_buttons()
 
-    def set_total_rows(self, total_rows: int):
+    def set_total_rows(self, total_rows: int, displayed_rows: int):
         """Set total number of rows and calculate pages"""
         self.total_rows = total_rows
+        self.displayed_rows = displayed_rows
         self.total_pages = max(1, (total_rows + self.page_size - 1) // self.page_size)
 
         # Reset to first page when data changes
@@ -91,7 +93,7 @@ class PaginationWidget(QWidget):
     def update_ui(self):
         """Update all UI elements"""
         self.page_label.setText(f"Page {self.current_page} of {self.total_pages}")
-        self.info_label.setText(f"Total: {self.total_rows:,} rows")
+        self.info_label.setText(f"Total: {self.total_rows:,} rows{f', displayed: {self.displayed_rows:,} rows' if self.displayed_rows != self.total_rows else ''}")
         self.page_input.setPlaceholderText(str(self.current_page))
         self.update_buttons()
 

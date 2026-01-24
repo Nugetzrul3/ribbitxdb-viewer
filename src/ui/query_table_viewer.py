@@ -84,11 +84,12 @@ class QueryResultViewer(QWidget):
         """
         self.all_columns = result.get('columns', [])
         self.all_rows = result.get('rows', [])
+        displayed_rows = result.get('displayed_rows', len(self.all_rows))
 
         self.current_sort_column = -1
         self.current_sort_order = Qt.SortOrder.AscendingOrder
 
-        self.pagination.set_total_rows(len(self.all_rows))
+        self.pagination.set_total_rows(len(self.all_rows), displayed_rows)
         self._display_page(page=1)
 
     def on_sort_changed(self, idx: int, sorting: Qt.SortOrder):
