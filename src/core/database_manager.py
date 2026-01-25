@@ -162,6 +162,8 @@ class DatabaseManager:
                         case "LIKE":
                             # text LIKE '%text%'
                             final_filters.append(f"{col} LIKE '%{val}%'")
+                        case _:
+                            raise ValueError(f"Invalid filter type: {filter_type}")
 
                 filter_string = " OR ".join(final_filters)
                 query += f"{filter_string}"

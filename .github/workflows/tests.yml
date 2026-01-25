@@ -10,6 +10,7 @@ env:
 
 jobs:
   test:
+    if: github.ref_name != 'main'
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]

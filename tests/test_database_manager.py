@@ -155,6 +155,20 @@ class TestDatabaseManager:
         assert data['total_rows'] == 10
         assert data['displayed_rows'] == 1
 
+        # invalid filter type
+        filters['columns'] = [
+            {
+                'condition': ('user_id', 1),
+                'type': 'LESS'
+            }
+        ]
+
+        with pytest.raises(ValueError):
+            populated_db_manager.get_table_data_paginated(
+                'users',
+                filters=filters
+            )
+
         # sorting
         filters.clear()
         filters = {
