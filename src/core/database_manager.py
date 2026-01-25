@@ -122,6 +122,9 @@ class DatabaseManager:
         query = cursor.execute("SELECT sql, created_at FROM __ribbit_views WHERE name = ?", (view_name,))
         res = query.fetchone()
 
+        if not res:
+            return {}
+
         schema: Dict[str, Any] = {
             'sql': res[0],
             'created_at': res[1],
@@ -239,16 +242,19 @@ class DatabaseManager:
 
             if max_rows > 0:
                 rows = query.fetchmany(max_rows + 1)
-                has_more = len(rows) > 0
                 cursor.close()
                 connection.close()
+
+                # Truncate rows
+                has_more = len(rows) > max_rows
+                if has_more:
+                    rows = rows[:max_rows]
 
                 return {
                     'columns': columns,
                     'rows': rows,
                     'total_rows': len(rows),
                     'truncated': has_more,
-                    'max_rows': max_rows,
                     **time_data
                 }
             # For this case, we could allow the user to do a fetch all

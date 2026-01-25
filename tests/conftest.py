@@ -4,7 +4,7 @@ import ribbitxdb
 import tempfile
 import pytest
 
-@pytest.fixture()
+@pytest.fixture
 def temp_db_path():
     # create temporary ribbitxdb database
     with tempfile.NamedTemporaryFile(suffix=".rbx") as f:
@@ -14,8 +14,8 @@ def temp_db_path():
 
     Path(path).unlink(missing_ok=True)
 
-@pytest.fixture()
-def db_manager(temp_db_path):
+@pytest.fixture
+def db_manager(request, temp_db_path):
     # create db_manager and tables
     with ribbitxdb.connect(temp_db_path) as conn:
         cursor = conn.cursor()
@@ -46,10 +46,14 @@ def db_manager(temp_db_path):
         conn.commit()
 
     db_manager = DatabaseManager(temp_db_path)
+
+    if request.cls:
+        request.cls.db_manager = db_manager
+
     yield db_manager
 
-@pytest.fixture()
-def populated_db_manager(db_manager):
+@pytest.fixture
+def populated_db_manager(request, db_manager):
     users = [
         {
             "name": f"Test User {x + 1}",
@@ -72,6 +76,9 @@ def populated_db_manager(db_manager):
     for i, user in enumerate(users):
         db_manager.insert_row("users", user)
         db_manager.insert_row("posts", posts[i])
+
+    if request.cls:
+        request.cls.populated_db_manager = db_manager
 
     return db_manager
 
