@@ -171,7 +171,8 @@ class TestDatabaseManager(unittest.TestCase):
         filters.clear()
         filters = {
             'sorting': {
-                'id': 'DESC'
+                'column': 'name',
+                'order': 'ASC'
             }
         }
 
@@ -180,7 +181,7 @@ class TestDatabaseManager(unittest.TestCase):
             filters=filters
         )
 
-        self.assertTrue(data['rows'] == sorted(data['rows'], key=lambda row: row[0]), 'Rows should be sorted')
+        self.assertTrue(data['rows'] == sorted(data['rows'], key=lambda row: row[1]), 'Rows should be sorted')
 
         # pagination
         data = self.populated_db_manager.get_table_data_paginated(
