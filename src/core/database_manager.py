@@ -11,14 +11,44 @@ class DatabaseManager:
         self.db_path = Path(db_path).as_posix()
         self.db_name = self.db_path.split("/")[-1]
 
+    # CUD operations
+    def insert_row(self, table_name: str, row: Dict[str, Any]):
+        """Insert row into specified table"""
+        connection = self._get_connection()
+        cursor = connection.cursor()
+        columns = list(row.keys())
+        values = list(row.values())
+
+        query = f"INSERT INTO {table_name} ({", ".join(columns)}) VALUES ({", ".join(['?' for _ in values])})"
+        cursor.execute(query, values)
+        connection.commit()
+        connection.close()
+
+    def update_row(self, table_name: str, row: Dict[str, Any], id: int):
+        """Update row based on specified pk column"""
+        connection = self._get_connection()
+        cursor = connection.cursor()
+        columns = list(row.keys())
+        values = list(row.values()) + [id]
+
+        set_clause = ','.join([f"{col} = ?" for col in columns])
+        query = f"UPDATE {table_name} SET {set_clause} WHERE 'id' = ?"
+        cursor.execute(query, values)
+        connection.commit()
+        connection.close()
+
+    def delete_row(self, table_name: str, id: int):
+        """Delete row based on id"""
+        connection = self._get_connection()
+        cursor = connection.cursor()
+        query = f"DELETE FROM {table_name} WHERE 'id' = ?"
+        cursor.execute(query, (id,))
+        connection.commit()
+        connection.close()
+
     def get_tables(self) -> List[str]:
         """Returns a list of table names"""
-
-        try:
-            connection = ribbitxdb.connect(self.db_path)
-        except Exception:
-            raise RuntimeError(f"Failed to connect to {self.db_path}")
-
+        connection = self._get_connection()
         cursor = connection.cursor()
         query = cursor.execute("SELECT name FROM __ribbit_tables WHERE type='table'")
         res = query.fetchall()
@@ -34,12 +64,7 @@ class DatabaseManager:
 
     def get_views(self) -> List[str]:
         """Get list of all views in database"""
-
-        try:
-            connection = ribbitxdb.connect(self.db_path)
-        except Exception:
-            raise RuntimeError(f"Failed to connect to {self.db_path}")
-
+        connection = self._get_connection()
         cursor = connection.cursor()
         query = cursor.execute("SELECT name, created_at FROM __ribbit_views ORDER BY created_at DESC")
         res = query.fetchall()
@@ -59,12 +84,7 @@ class DatabaseManager:
         :param table_name: Table name
         :return: List[Dict[str, Any]]
         """
-
-        try:
-            connection = ribbitxdb.connect(self.db_path)
-        except Exception:
-            raise RuntimeError(f"Failed to connect to {self.db_path}")
-
+        connection = self._get_connection()
         cursor = connection.cursor()
         query = cursor.execute("PRAGMA table_info(?)", (table_name,))
         res = query.fetchall()
@@ -97,15 +117,13 @@ class DatabaseManager:
         :param view_name:
         :return: Dict[str, Any]
         """
-
-        try:
-            connection = ribbitxdb.connect(self.db_path)
-        except Exception:
-            raise RuntimeError(f"Failed to connect to {self.db_path}")
-
+        connection = self._get_connection()
         cursor = connection.cursor()
         query = cursor.execute("SELECT sql, created_at FROM __ribbit_views WHERE name = ?", (view_name,))
         res = query.fetchone()
+
+        if not res:
+            return {}
 
         schema: Dict[str, Any] = {
             'sql': res[0],
@@ -126,11 +144,7 @@ class DatabaseManager:
         :param filters: Filters for searching and sorting
         :return: Dict[str, Any]
         """
-        try:
-            connection = ribbitxdb.connect(self.db_path)
-        except Exception:
-            raise RuntimeError(f"Failed to connect to {self.db_path}")
-
+        connection = self._get_connection()
         offset = (page - 1) * page_size
         cursor = connection.cursor()
         query = f"{table_name}"
@@ -150,7 +164,9 @@ class DatabaseManager:
                             final_filters.append(f"{col} = {val}")
                         case "LIKE":
                             # text LIKE '%text%'
-                            final_filters.append(f"{col} {val}")
+                            final_filters.append(f"{col} LIKE '%{val}%'")
+                        case _:
+                            raise ValueError(f"Invalid filter type: {filter_type}")
 
                 filter_string = " OR ".join(final_filters)
                 query += f"{filter_string}"
@@ -162,7 +178,7 @@ class DatabaseManager:
 
                 query += f" ORDER BY {column} {order}"
 
-        count_query = cursor.execute(f" SELECT COUNT(*) FROM {query}")
+        count_query = cursor.execute(f" SELECT COUNT(*) FROM {table_name}")
         total_rows = count_query.fetchone()[0]
 
         query = cursor.execute(
@@ -181,31 +197,23 @@ class DatabaseManager:
             'columns': columns,
             'rows': rows,
             'total_rows': total_rows,
-            'page': page,
-            'page_size': page_size,
             'displayed_rows': len(rows)
         }
 
     def delete_table(self, table_name: str):
-        try:
-            connection = ribbitxdb.connect(self.db_path)
-        except Exception:
-            raise RuntimeError(f"Failed to connect to {self.db_path}")
-
+        connection = self._get_connection()
         cursor = connection.cursor()
         cursor.execute(f"DROP TABLE {table_name}")
         cursor.close()
+        connection.commit()
         connection.close()
 
     def delete_view(self, view_name: str):
-        try:
-            connection = ribbitxdb.connect(self.db_path)
-        except Exception:
-            raise RuntimeError(f"Failed to connect to {self.db_path}")
-
+        connection = self._get_connection()
         cursor = connection.cursor()
         cursor.execute(f"DROP VIEW {view_name}")
         cursor.close()
+        connection.commit()
         connection.close()
 
     def execute_query(self, sql: str, max_rows: int = 5000) -> Dict[str, Any]:
@@ -216,11 +224,7 @@ class DatabaseManager:
         :return: Dict[str, Any]
         """
 
-        try:
-            connection = ribbitxdb.connect(self.db_path)
-        except Exception:
-            raise RuntimeError(f"Failed to connect to {self.db_path}")
-
+        connection = self._get_connection()
         cursor = connection.cursor()
         start_time = time.time()
         query = cursor.execute(sql)
@@ -238,16 +242,19 @@ class DatabaseManager:
 
             if max_rows > 0:
                 rows = query.fetchmany(max_rows + 1)
-                has_more = len(rows) > 0
                 cursor.close()
                 connection.close()
+
+                # Truncate rows
+                has_more = len(rows) > max_rows
+                if has_more:
+                    rows = rows[:max_rows]
 
                 return {
                     'columns': columns,
                     'rows': rows,
                     'total_rows': len(rows),
                     'truncated': has_more,
-                    'max_rows': max_rows,
                     **time_data
                 }
             # For this case, we could allow the user to do a fetch all
@@ -278,3 +285,11 @@ class DatabaseManager:
                 'truncated': False,
                 **time_data
             }
+
+    def _get_connection(self):
+        try:
+            connection = ribbitxdb.connect(self.db_path)
+        except Exception:
+            raise RuntimeError(f"Failed to connect to {self.db_path}")
+
+        return connection

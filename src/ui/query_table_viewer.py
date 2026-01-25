@@ -84,11 +84,15 @@ class QueryResultViewer(QWidget):
         """
         self.all_columns = result.get('columns', [])
         self.all_rows = result.get('rows', [])
+        rows_length = len(self.all_rows)
 
         self.current_sort_column = -1
         self.current_sort_order = Qt.SortOrder.AscendingOrder
 
-        self.pagination.set_total_rows(len(self.all_rows))
+        # For query editor pagination, make it display total rows
+        # without showing displayed rows. It's unnecessary as the
+        # user already knows this
+        self.pagination.set_total_rows(rows_length, rows_length)
         self._display_page(page=1)
 
     def on_sort_changed(self, idx: int, sorting: Qt.SortOrder):

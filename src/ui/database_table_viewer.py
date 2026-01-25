@@ -186,7 +186,8 @@ class DatabaseTableViewer(QWidget):
 
         self.multi_combo_box.add_items(columns)
         total_rows = data.get('total_rows', len(data.get('rows', [])))
-        self.pagination.set_total_rows(total_rows)
+        displayed_rows = data.get('displayed_rows', len(data.get('rows', [])))
+        self.pagination.set_total_rows(total_rows, displayed_rows)
         self.search_input.setEnabled(True)
         self.search_button.setEnabled(True)
         self.add_button.setEnabled(True)
@@ -226,7 +227,9 @@ class DatabaseTableViewer(QWidget):
             h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
             h_header.setStretchLastSection(True)
 
-            self.pagination.set_total_rows(data.get('total_rows', len(data.get('rows', []))))
+            total_rows = data.get('total_rows', len(data.get('rows', [])))
+            displayed_rows = data.get('displayed_rows', len(data.get('rows', [])))
+            self.pagination.set_total_rows(total_rows, displayed_rows)
             self.pagination.go_to_page(1)
             return
 
@@ -243,7 +246,7 @@ class DatabaseTableViewer(QWidget):
             data = list_item.data(Qt.ItemDataRole.UserRole)
             if data == "TEXT":
                 filter_columns.append({
-                    "condition": (item[0], f"LIKE '%{search_text}%'"),
+                    "condition": (item[0], search_text),
                     "type": "LIKE"
                 })
                 continue
@@ -277,7 +280,9 @@ class DatabaseTableViewer(QWidget):
         h_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         h_header.setStretchLastSection(True)
 
-        self.pagination.set_total_rows(data.get('total_rows', len(data.get('rows', []))))
+        total_rows = data.get('total_rows', len(data.get('rows', [])))
+        displayed_rows = data.get('displayed_rows', len(data.get('rows', [])))
+        self.pagination.set_total_rows(total_rows, displayed_rows)
         self.pagination.go_to_page(1)
 
     def on_page_size_changed(self, page_size: int):
