@@ -36,12 +36,16 @@ def get_dummy_data(col_type: str, column: str) -> Any:
     return f'\'{column}\''
     # How to determine boolean?
 
+def copy_to_clipboard(text: str):
+    clipboard = QApplication.clipboard()
+    clipboard.setText(text)
+
 def query_viewer_db(
         query: Any,
         params: Optional[tuple] = None,
         table: Optional[str] = None,
         key_cols: Optional[List[str]] = None
-):
+): # pragma: no cover
     try:
         data_dir = user_data_dir(APP_NAME, APP_AUTHOR, ensure_exists=True)
         conn = ribbitxdb.connect(data_dir + "/viewer.rbx")
@@ -92,9 +96,4 @@ def query_viewer_db(
             raise ValueError
     except Exception as e:
         raise e
-
-def copy_to_clipboard(text: str):
-    """Copy text to clipboard"""
-    clipboard = QApplication.clipboard()
-    clipboard.setText(text)
 
