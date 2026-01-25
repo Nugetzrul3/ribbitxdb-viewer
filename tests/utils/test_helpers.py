@@ -44,8 +44,11 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(0.0, helpers.get_dummy_data('REAL', 'amount'))
         self.assertEqual("'column'", helpers.get_dummy_data('STRING', 'column'))
 
-    @pytest.mark.usefixtures("use_qapp")
-    def test_copy_to_clipboard(self):
-        clipboard = self.qapp.clipboard()
-        helpers.copy_to_clipboard('Test Clipboard Text')
-        self.assertEqual(clipboard.text(), 'Test Clipboard Text')
+    @patch('src.utils.helpers.QApplication.clipboard')
+    def test_copy_to_clipboard(
+            self,
+            mock_clipboard
+    ):
+        clipboard = mock_clipboard.return_value
+        helpers.copy_to_clipboard("Test Clipboard Text")
+        clipboard.setText.assert_called_once_with("Test Clipboard Text")

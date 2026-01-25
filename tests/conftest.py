@@ -82,13 +82,3 @@ def populated_db_manager(request, db_manager):
 
     return db_manager
 
-@pytest.fixture
-def use_qapp(request, qapp):
-    if request.cls:
-        request.cls.qapp = qapp
-
-@pytest.fixture
-def use_qtbot(request, qtbot):
-    if request.cls:
-        request.cls.qtbot = qtbot
-
