@@ -36,7 +36,7 @@ class MultiSelectComboBox(QComboBox):
         self.setEnabled(True)
         self.setToolTip('Select columns to search')
 
-    def on_item_pressed(self, item):
+    def on_item_pressed(self, item: QListWidgetItem):
         if item.checkState() == Qt.CheckState.Checked:
             item.setCheckState(Qt.CheckState.Unchecked)
             self.selected_items.pop(item.text())
@@ -58,10 +58,9 @@ class MultiSelectComboBox(QComboBox):
         return super().eventFilter(obj, event)
 
     def update_tool_tip(self):
-        selected = self.selected_items.values()
-        selected_item_names = [x.text() for x in selected]
-        selected_tool_tip = "\n".join(selected_item_names)
-        self.setToolTip(f'Selected columns: \n{selected_tool_tip}' if len(selected_item_names) > 0 else 'Select columns to search')
+        selected = self.selected_items.keys()
+        selected_tool_tip = "\n".join(selected)
+        self.setToolTip(f'Selected columns: \n{selected_tool_tip}' if len(selected) > 0 else 'Select columns to search')
 
     def get_selected_items(self) -> List[tuple]:
         return self.selected_items.items() if len(self.selected_items) > 0 else self.all_columns
