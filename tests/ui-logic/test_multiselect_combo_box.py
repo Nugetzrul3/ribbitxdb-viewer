@@ -1,6 +1,6 @@
 from src.ui.custom import MultiSelectComboBox
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt, QMimeData
+from PySide6.QtCore import Qt
 import unittest
 import sys
 
@@ -8,9 +8,10 @@ import sys
 class TestMultiSelectComboBox(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = QApplication()
-        if cls.app is None:
+        if not QApplication.instance():
             cls.app = QApplication(sys.argv)
+        else:
+            cls.app = QApplication.instance()
 
     def setUp(self):
         self.mscb = MultiSelectComboBox()
