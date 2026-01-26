@@ -3,15 +3,11 @@ from PySide6.QtGui import QColor
 from typing import Any, Dict
 
 
-
 class DatabaseTableModel(QAbstractTableModel):
-    def __init__(self, data: Dict[str, Any] = None):
+    def __init__(self):
         super().__init__()
         self._columns = []
         self._rows = []
-
-        if data:
-            self.set_data(data)
 
     def headerData(self, section, orientation, role = Qt.ItemDataRole.DisplayRole):
         """Return header data to display"""
@@ -31,10 +27,6 @@ class DatabaseTableModel(QAbstractTableModel):
 
         row = index.row()
         column = index.column()
-
-        if row >= len(self._rows) or column >= len(self._columns):
-            return None
-
         value = self._rows[row][column]
 
         if role == Qt.ItemDataRole.DisplayRole:

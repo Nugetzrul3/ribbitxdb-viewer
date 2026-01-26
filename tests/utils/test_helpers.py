@@ -2,10 +2,9 @@ from unittest.mock import patch
 from src.utils import helpers
 import unittest
 import datetime
-import pytest
 
 
-class MyTestCase(unittest.TestCase):
+class TestHelperUtils(unittest.TestCase):
     def test_trim_string(self):
         long = "teststring" * 11
         short = "teststring"
