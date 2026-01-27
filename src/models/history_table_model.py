@@ -32,7 +32,7 @@ class HistoryTableModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             if isinstance(value, float):
                 return f"{value:.4f}"
-            return str(value)
+            return str(value) if value is not None else 'NULL'
         elif role == Qt.ItemDataRole.ForegroundRole:
             if value is None:
                 return QColor("#6B7280")
